@@ -11,12 +11,13 @@ Current implementation slice:
 - strict `cgb-bg` tile/palette-bank renderer
 - inspect recommendations for mode/palette fit
 - composed debug-sheet export
+- deterministic render golden-hash tests
 - review bundle emission to temp/user-selected disk
 - embedded local web UI with persisted review URLs/artifacts
 
 Not done yet:
 
-- golden-image fixtures
+- binary/image fixture files for visual review
 
 ## Commands
 
