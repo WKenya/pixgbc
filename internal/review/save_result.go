@@ -1,12 +1,14 @@
 package review
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"time"
 
 	"github.com/WKenya/pixgbc/internal/core"
 	"github.com/WKenya/pixgbc/internal/export"
+	"github.com/WKenya/pixgbc/internal/ioimg"
 )
 
 func SaveResult(ctx context.Context, store Store, inputBytes []byte, cfg core.Config, result *core.Result) (ReviewRecord, error) {
@@ -39,16 +41,17 @@ func SaveResult(ctx context.Context, store Store, inputBytes []byte, cfg core.Co
 		record.Artifacts.FinalPNG:   finalPNG,
 		record.Artifacts.PreviewPNG: previewPNG,
 	}
-	if len(result.DebugImages) > 0 {
-		for _, img := range result.DebugImages {
-			debugPNG, err := export.PNGBytes(img)
-			if err != nil {
-				return ReviewRecord{}, err
-			}
-			record.Artifacts.DebugPNG = DefaultDebugPNGName
-			files[record.Artifacts.DebugPNG] = debugPNG
-			break
+	if cfg.EmitDebug {
+		decoded, err := ioimg.DecodeImage(bytes.NewReader(inputBytes), ioimg.DefaultLimits())
+		if err != nil {
+			return ReviewRecord{}, err
 		}
+		debugPNG, err := export.DebugSheetPNG(decoded.Image, result)
+		if err != nil {
+			return ReviewRecord{}, err
+		}
+		record.Artifacts.DebugPNG = DefaultDebugPNGName
+		files[record.Artifacts.DebugPNG] = debugPNG
 	}
 
 	if err := store.Save(ctx, record, files); err != nil {

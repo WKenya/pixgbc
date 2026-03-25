@@ -9,12 +9,12 @@ Current implementation slice:
 - `convert`, `inspect`, `palette list`, `serve`
 - relaxed-mode MVP renderer
 - strict `cgb-bg` tile/palette-bank renderer
+- composed debug-sheet export
 - review bundle emission to temp/user-selected disk
 - embedded local web UI with persisted review URLs/artifacts
 
 Not done yet:
 
-- debug sheet export
 - golden-image fixtures
 
 ## Commands
@@ -31,7 +31,7 @@ go run ./cmd/pixgbc serve --addr 127.0.0.1:8080
 
 `convert --emit-review` writes `final.png`, `preview.png`, and `meta.json` into a review bundle directory and prints the bundle path.
 
-`convert --mode cgb-bg` runs the stricter tile/palette-bank solver. Add `--debug` to persist the tile-bank heatmap into the review bundle.
+`convert --mode cgb-bg` runs the stricter tile/palette-bank solver. Add `--debug` to persist a composed debug sheet into the review bundle.
 
 `serve` persists browser renders into a temp review store and exposes:
 

@@ -46,8 +46,8 @@ var reviewTemplate = template.Must(template.New("review").Parse(`<!doctype html>
       </section>
       {{if .DebugURL}}
       <section class="panel">
-        <h2>Tile Bank Heatmap</h2>
-        <img src="{{.DebugURL}}" alt="Tile bank heatmap" style="width: 100%; image-rendering: pixelated; border: 2px solid #28331f; background: #fff;">
+        <h2>Debug Sheet</h2>
+        <img src="{{.DebugURL}}" alt="Debug sheet" style="width: 100%; image-rendering: pixelated; border: 2px solid #28331f; background: #fff;">
       </section>
       {{end}}
       <section class="panel">

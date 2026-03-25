@@ -56,7 +56,7 @@ async function renderImage() {
     <a href="${payload.final_url}" target="_blank" rel="noreferrer">final png</a>
     <span> · </span>
     <a href="${payload.record_url}" target="_blank" rel="noreferrer">record json</a>
-    ${payload.debug_url ? `<span> · </span><a href="${payload.debug_url}" target="_blank" rel="noreferrer">heatmap</a>` : ""}
+    ${payload.debug_url ? `<span> · </span><a href="${payload.debug_url}" target="_blank" rel="noreferrer">debug sheet</a>` : ""}
   `;
   statusNode.textContent = "render complete";
   renderButton.disabled = false;
