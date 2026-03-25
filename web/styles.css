@@ -71,6 +71,10 @@ h1 {
   gap: 6px;
 }
 
+.checkbox {
+  align-content: end;
+}
+
 .field span {
   font-size: 0.9rem;
   letter-spacing: 0.08em;
@@ -92,6 +96,11 @@ button {
   color: #fffdf8;
   background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
   cursor: pointer;
+}
+
+.checkbox input {
+  width: 24px;
+  height: 24px;
 }
 
 .status {
@@ -126,10 +135,14 @@ button {
 
 @media (min-width: 780px) {
   .controls {
-    grid-template-columns: 1.3fr 1fr 0.8fr auto;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .status {
     grid-column: 1 / -1;
+  }
+
+  .controls button {
+    grid-column: span 1;
   }
 }

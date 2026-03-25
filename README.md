@@ -13,7 +13,7 @@ Current implementation slice:
 - composed debug-sheet export
 - deterministic render golden-hash tests
 - review bundle emission to temp/user-selected disk
-- embedded local web UI with persisted review URLs/artifacts
+- embedded local web UI with persisted review URLs/artifacts and basic render controls
 
 Not done yet:
 
@@ -36,6 +36,8 @@ go run ./cmd/pixgbc serve --addr 127.0.0.1:8080
 `convert --mode cgb-bg` runs the stricter tile/palette-bank solver. Add `--debug` to persist a composed debug sheet into the review bundle.
 
 `inspect --json` now reports dominant colors, estimated strict-mode fit, and recommended mode/palette preset.
+
+`serve` exposes browser controls for mode, preset vs extract, width/height, crop, dither, and debug output.
 
 `serve` persists browser renders into a temp review store and exposes:
 

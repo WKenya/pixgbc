@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -103,16 +104,10 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg := core.Config{
-		PalettePreset: r.FormValue("palette"),
-		Mode:          core.Mode(r.FormValue("mode")),
-		EmitDebug:     r.FormValue("debug") == "1" || r.FormValue("debug") == "true",
-	}
-	if cfg.PalettePreset == "" {
-		cfg.PalettePreset = core.DefaultConfig().PalettePreset
-	}
-	if cfg.Mode == "" {
-		cfg.Mode = core.ModeRelaxed
+	cfg, err := parseRenderConfig(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	result, err := s.engine.Run(r.Context(), source.NewSingleImage(decoded.Image, decoded.Meta), cfg)
@@ -244,5 +239,61 @@ func contentTypeForArtifact(name string) string {
 		return "application/json"
 	default:
 		return "application/octet-stream"
+	}
+}
+
+func parseRenderConfig(r *http.Request) (core.Config, error) {
+	defaults := core.DefaultConfig()
+	cfg := core.Config{
+		Mode:            core.Mode(formValueDefault(r, "mode", string(defaults.Mode))),
+		PaletteStrategy: core.PaletteStrategy(formValueDefault(r, "palette_mode", string(defaults.PaletteStrategy))),
+		PalettePreset:   formValueDefault(r, "palette", defaults.PalettePreset),
+		Dither:          core.DitherMode(formValueDefault(r, "dither", string(defaults.Dither))),
+		CropMode:        core.CropMode(formValueDefault(r, "crop", string(defaults.CropMode))),
+		EmitDebug:       formBool(r, "debug"),
+	}
+
+	width, err := formIntDefault(r, "width", defaults.TargetWidth)
+	if err != nil {
+		return core.Config{}, fmt.Errorf("invalid width: %w", err)
+	}
+	height, err := formIntDefault(r, "height", defaults.TargetHeight)
+	if err != nil {
+		return core.Config{}, fmt.Errorf("invalid height: %w", err)
+	}
+	previewScale, err := formIntDefault(r, "preview_scale", defaults.PreviewScale)
+	if err != nil {
+		return core.Config{}, fmt.Errorf("invalid preview_scale: %w", err)
+	}
+
+	cfg.TargetWidth = width
+	cfg.TargetHeight = height
+	cfg.PreviewScale = previewScale
+
+	return cfg, nil
+}
+
+func formValueDefault(r *http.Request, key, fallback string) string {
+	value := strings.TrimSpace(r.FormValue(key))
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func formIntDefault(r *http.Request, key string, fallback int) (int, error) {
+	raw := strings.TrimSpace(r.FormValue(key))
+	if raw == "" {
+		return fallback, nil
+	}
+	return strconv.Atoi(raw)
+}
+
+func formBool(r *http.Request, key string) bool {
+	switch strings.ToLower(strings.TrimSpace(r.FormValue(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
 	}
 }

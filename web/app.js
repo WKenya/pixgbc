@@ -1,5 +1,11 @@
+const paletteModeSelect = document.querySelector("#palette-mode");
 const paletteSelect = document.querySelector("#palette");
 const modeSelect = document.querySelector("#mode");
+const widthInput = document.querySelector("#width");
+const heightInput = document.querySelector("#height");
+const cropSelect = document.querySelector("#crop");
+const ditherSelect = document.querySelector("#dither");
+const debugInput = document.querySelector("#debug");
 const fileInput = document.querySelector("#file");
 const renderButton = document.querySelector("#render");
 const statusNode = document.querySelector("#status");
@@ -31,9 +37,14 @@ async function renderImage() {
 
   const form = new FormData();
   form.set("file", file);
+  form.set("palette_mode", paletteModeSelect.value);
   form.set("palette", paletteSelect.value);
   form.set("mode", modeSelect.value);
-  if (modeSelect.value === "cgb-bg") {
+  form.set("width", widthInput.value);
+  form.set("height", heightInput.value);
+  form.set("crop", cropSelect.value);
+  form.set("dither", ditherSelect.value);
+  if (debugInput.checked || modeSelect.value === "cgb-bg") {
     form.set("debug", "1");
   }
 
@@ -62,8 +73,18 @@ async function renderImage() {
   renderButton.disabled = false;
 }
 
+function syncControls() {
+  const extractMode = paletteModeSelect.value === "extract";
+  paletteSelect.disabled = extractMode;
+  debugInput.checked = debugInput.checked || modeSelect.value === "cgb-bg";
+}
+
 renderButton.addEventListener("click", () => {
   void renderImage();
 });
 
+paletteModeSelect.addEventListener("change", syncControls);
+modeSelect.addEventListener("change", syncControls);
+
 void loadPalettes();
+syncControls();

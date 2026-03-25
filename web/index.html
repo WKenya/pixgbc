@@ -21,6 +21,14 @@
         </label>
 
         <label class="field">
+          <span>Palette Mode</span>
+          <select id="palette-mode">
+            <option value="preset">preset</option>
+            <option value="extract">extract</option>
+          </select>
+        </label>
+
+        <label class="field">
           <span>Palette</span>
           <select id="palette"></select>
         </label>
@@ -31,6 +39,39 @@
             <option value="relaxed">relaxed</option>
             <option value="cgb-bg">cgb-bg</option>
           </select>
+        </label>
+
+        <label class="field">
+          <span>Width</span>
+          <input id="width" type="number" min="1" value="160">
+        </label>
+
+        <label class="field">
+          <span>Height</span>
+          <input id="height" type="number" min="1" value="144">
+        </label>
+
+        <label class="field">
+          <span>Crop</span>
+          <select id="crop">
+            <option value="fill">fill</option>
+            <option value="fit">fit</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Dither</span>
+          <select id="dither">
+            <option value="ordered">ordered</option>
+            <option value="none">none</option>
+            <option value="floyd-steinberg">floyd-steinberg</option>
+            <option value="atkinson">atkinson</option>
+          </select>
+        </label>
+
+        <label class="field checkbox">
+          <span>Debug Sheet</span>
+          <input id="debug" type="checkbox">
         </label>
 
         <button id="render">Render</button>

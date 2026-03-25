@@ -145,6 +145,89 @@ func TestRenderCGBBGIncludesDebugArtifact(t *testing.T) {
 	}
 }
 
+func TestRenderPersistsFormConfig(t *testing.T) {
+	store, err := review.NewTempStore(t.TempDir(), time.Hour)
+	if err != nil {
+		t.Fatalf("NewTempStore() error = %v", err)
+	}
+
+	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "config.png")
+	if err != nil {
+		t.Fatalf("CreateFormFile() error = %v", err)
+	}
+	if _, err := part.Write(makePNG(t)); err != nil {
+		t.Fatalf("part.Write() error = %v", err)
+	}
+	fields := map[string]string{
+		"mode":          "relaxed",
+		"palette_mode":  "extract",
+		"palette":       "lcd-cool",
+		"width":         "96",
+		"height":        "80",
+		"crop":          "fit",
+		"dither":        "none",
+		"preview_scale": "3",
+		"debug":         "1",
+	}
+	for key, value := range fields {
+		if err := writer.WriteField(key, value); err != nil {
+			t.Fatalf("WriteField(%s) error = %v", key, err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("writer.Close() error = %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/render", &body)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("POST /api/render status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+
+	var response RenderResponse
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+
+	recordRequest := httptest.NewRequest(http.MethodGet, response.RecordURL, nil)
+	recordRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(recordRecorder, recordRequest)
+
+	if recordRecorder.Code != http.StatusOK {
+		t.Fatalf("GET %s status = %d, body = %s", response.RecordURL, recordRecorder.Code, recordRecorder.Body.String())
+	}
+
+	var record review.ReviewRecord
+	if err := json.Unmarshal(recordRecorder.Body.Bytes(), &record); err != nil {
+		t.Fatalf("json.Unmarshal(record) error = %v", err)
+	}
+	if record.Config.TargetWidth != 96 || record.Config.TargetHeight != 80 {
+		t.Fatalf("record.Config size = %dx%d, want 96x80", record.Config.TargetWidth, record.Config.TargetHeight)
+	}
+	if record.Config.CropMode != "fit" {
+		t.Fatalf("record.Config.CropMode = %q, want fit", record.Config.CropMode)
+	}
+	if record.Config.Dither != "none" {
+		t.Fatalf("record.Config.Dither = %q, want none", record.Config.Dither)
+	}
+	if record.Config.PaletteStrategy != "extract" {
+		t.Fatalf("record.Config.PaletteStrategy = %q, want extract", record.Config.PaletteStrategy)
+	}
+	if record.Config.PreviewScale != 3 {
+		t.Fatalf("record.Config.PreviewScale = %d, want 3", record.Config.PreviewScale)
+	}
+	if !record.Config.EmitDebug {
+		t.Fatal("record.Config.EmitDebug = false, want true")
+	}
+}
+
 func makePNG(t *testing.T) []byte {
 	t.Helper()
 
