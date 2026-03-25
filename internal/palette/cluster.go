@@ -69,12 +69,16 @@ func ClusterTilePalettes(tilePalettes [][]color.NRGBA, maxBanks int, colorsPerTi
 }
 
 func AssignTilePalettesToBanks(tilePalettes [][]color.NRGBA, banks [][]color.NRGBA) []int {
+	if len(tilePalettes) == 0 || len(banks) == 0 {
+		return nil
+	}
+
 	assignments := make([]int, 0, len(tilePalettes))
 	for _, tilePalette := range tilePalettes {
 		assignment := 0
-		bestDistance := paletteDistance(normalizePaletteColors(tilePalette, len(banks[0])), banks[0])
+		bestDistance := PaletteDistance(normalizePaletteColors(tilePalette, len(banks[0])), banks[0])
 		for i := 1; i < len(banks); i++ {
-			distance := paletteDistance(tilePalette, banks[i])
+			distance := PaletteDistance(tilePalette, banks[i])
 			if distance < bestDistance {
 				bestDistance = distance
 				assignment = i
@@ -85,7 +89,7 @@ func AssignTilePalettesToBanks(tilePalettes [][]color.NRGBA, banks [][]color.NRG
 	return assignments
 }
 
-func paletteDistance(a, b []color.NRGBA) int {
+func PaletteDistance(a, b []color.NRGBA) int {
 	total := 0
 	for _, colorA := range a {
 		total += nearestColorDistance(colorA, b)
@@ -207,12 +211,12 @@ func sortClusters(clusters []*bankCluster) {
 
 func nearestClusterPair(clusters []*bankCluster) (int, int) {
 	bestLeft, bestRight := 0, 1
-	bestDistance := paletteDistance(clusters[0].colors, clusters[1].colors)
+	bestDistance := PaletteDistance(clusters[0].colors, clusters[1].colors)
 	bestKey := paletteKey(clusters[0].colors) + "|" + paletteKey(clusters[1].colors)
 
 	for i := 0; i < len(clusters); i++ {
 		for j := i + 1; j < len(clusters); j++ {
-			distance := paletteDistance(clusters[i].colors, clusters[j].colors)
+			distance := PaletteDistance(clusters[i].colors, clusters[j].colors)
 			key := paletteKey(clusters[i].colors) + "|" + paletteKey(clusters[j].colors)
 			if distance < bestDistance || (distance == bestDistance && key < bestKey) {
 				bestDistance = distance

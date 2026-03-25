@@ -6,17 +6,19 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/WKenya/pixgbc/internal/core"
 	"github.com/WKenya/pixgbc/internal/ioimg"
-	"github.com/WKenya/pixgbc/internal/review"
 )
 
 func (a *App) runInspect(args []string) int {
 	fs := flag.NewFlagSet("inspect", flag.ContinueOnError)
 	fs.SetOutput(a.stderr)
 
-	var inputPath string
+	var (
+		inputPath string
+		jsonOut   bool
+	)
 	fs.StringVar(&inputPath, "input", "", "input image path")
+	fs.BoolVar(&jsonOut, "json", true, "emit JSON output")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -37,20 +39,20 @@ func (a *App) runInspect(args []string) int {
 		_, _ = fmt.Fprintf(a.stderr, "decode input: %v\n", err)
 		return 1
 	}
-
-	out := map[string]any{
-		"source":      decoded.Meta,
-		"default_cfg": core.DefaultConfig(),
+	if !jsonOut {
+		_, _ = fmt.Fprintln(a.stderr, "only JSON output is supported right now; use --json")
+		return 2
 	}
 
-	configHash, err := review.HashConfig(core.DefaultConfig())
-	if err == nil {
-		out["default_cfg_sha256"] = configHash
+	report, err := buildInspectReport(decoded.Image, decoded.Meta)
+	if err != nil {
+		_, _ = fmt.Fprintf(a.stderr, "analyze input: %v\n", err)
+		return 1
 	}
 
 	encoder := json.NewEncoder(a.stdout)
 	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(out); err != nil {
+	if err := encoder.Encode(report); err != nil {
 		_, _ = fmt.Fprintf(a.stderr, "encode json: %v\n", err)
 		return 1
 	}
