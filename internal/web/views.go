@@ -44,6 +44,12 @@ var reviewTemplate = template.Must(template.New("review").Parse(`<!doctype html>
           <img src="{{.FinalURL}}" alt="Final image">
         </div>
       </section>
+      {{if .DebugURL}}
+      <section class="panel">
+        <h2>Tile Bank Heatmap</h2>
+        <img src="{{.DebugURL}}" alt="Tile bank heatmap" style="width: 100%; image-rendering: pixelated; border: 2px solid #28331f; background: #fff;">
+      </section>
+      {{end}}
       <section class="panel">
         <h2>Metadata</h2>
         <pre>{{.RecordJSON}}</pre>
@@ -57,10 +63,11 @@ type reviewPageData struct {
 	RecordURL  string
 	PreviewURL string
 	FinalURL   string
+	DebugURL   string
 	RecordJSON string
 }
 
-func renderReviewPage(record review.ReviewRecord, recordURL, previewURL, finalURL string) ([]byte, error) {
+func renderReviewPage(record review.ReviewRecord, recordURL, previewURL, finalURL, debugURL string) ([]byte, error) {
 	jsonBytes, err := json.MarshalIndent(record, "", "  ")
 	if err != nil {
 		return nil, err
@@ -72,6 +79,7 @@ func renderReviewPage(record review.ReviewRecord, recordURL, previewURL, finalUR
 		RecordURL:  recordURL,
 		PreviewURL: previewURL,
 		FinalURL:   finalURL,
+		DebugURL:   debugURL,
 		RecordJSON: string(jsonBytes),
 	}); err != nil {
 		return nil, err

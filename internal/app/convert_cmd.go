@@ -29,6 +29,7 @@ func (a *App) runConvert(ctx context.Context, args []string) int {
 		emitReview   string
 		paletteMode  string
 		previewScale int
+		emitDebug    bool
 	)
 
 	fs.StringVar(&inputPath, "input", "", "input image path")
@@ -42,6 +43,7 @@ func (a *App) runConvert(ctx context.Context, args []string) int {
 	fs.StringVar(&previewOut, "preview-out", "", "optional preview PNG path")
 	fs.StringVar(&emitReview, "emit-review", "", "review root dir, or temp")
 	fs.IntVar(&previewScale, "preview-scale", 6, "preview upscale factor")
+	fs.BoolVar(&emitDebug, "debug", false, "emit debug artifacts when supported")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -78,6 +80,7 @@ func (a *App) runConvert(ctx context.Context, args []string) int {
 		Dither:          core.DitherMode(dither),
 		CropMode:        core.CropMode(crop),
 		PreviewScale:    previewScale,
+		EmitDebug:       emitDebug,
 	}
 
 	result, err := a.engine().Run(ctx, source.NewSingleImage(decoded.Image, decoded.Meta), cfg)

@@ -6,4 +6,5 @@ type RenderResponse struct {
 	RecordURL  string `json:"record_url"`
 	PreviewURL string `json:"preview_url"`
 	FinalURL   string `json:"final_url"`
+	DebugURL   string `json:"debug_url,omitempty"`
 }

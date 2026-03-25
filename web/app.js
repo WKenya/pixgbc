@@ -1,4 +1,5 @@
 const paletteSelect = document.querySelector("#palette");
+const modeSelect = document.querySelector("#mode");
 const fileInput = document.querySelector("#file");
 const renderButton = document.querySelector("#render");
 const statusNode = document.querySelector("#status");
@@ -31,6 +32,10 @@ async function renderImage() {
   const form = new FormData();
   form.set("file", file);
   form.set("palette", paletteSelect.value);
+  form.set("mode", modeSelect.value);
+  if (modeSelect.value === "cgb-bg") {
+    form.set("debug", "1");
+  }
 
   const response = await fetch("/api/render", {
     method: "POST",
@@ -51,6 +56,7 @@ async function renderImage() {
     <a href="${payload.final_url}" target="_blank" rel="noreferrer">final png</a>
     <span> · </span>
     <a href="${payload.record_url}" target="_blank" rel="noreferrer">record json</a>
+    ${payload.debug_url ? `<span> · </span><a href="${payload.debug_url}" target="_blank" rel="noreferrer">heatmap</a>` : ""}
   `;
   statusNode.textContent = "render complete";
   renderButton.disabled = false;

@@ -105,9 +105,14 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 
 	cfg := core.Config{
 		PalettePreset: r.FormValue("palette"),
+		Mode:          core.Mode(r.FormValue("mode")),
+		EmitDebug:     r.FormValue("debug") == "1" || r.FormValue("debug") == "true",
 	}
 	if cfg.PalettePreset == "" {
 		cfg.PalettePreset = core.DefaultConfig().PalettePreset
+	}
+	if cfg.Mode == "" {
+		cfg.Mode = core.ModeRelaxed
 	}
 
 	result, err := s.engine.Run(r.Context(), source.NewSingleImage(decoded.Image, decoded.Meta), cfg)
@@ -122,13 +127,17 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, RenderResponse{
+	response := RenderResponse{
 		ID:         record.ID,
 		ReviewURL:  s.reviewURL(record.ID),
 		RecordURL:  s.recordURL(record.ID),
 		PreviewURL: s.artifactURL(record.ID, record.Artifacts.PreviewPNG),
 		FinalURL:   s.artifactURL(record.ID, record.Artifacts.FinalPNG),
-	})
+	}
+	if record.Artifacts.DebugPNG != "" {
+		response.DebugURL = s.artifactURL(record.ID, record.Artifacts.DebugPNG)
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (s *Server) handleGetRecord(w http.ResponseWriter, r *http.Request) {
@@ -172,11 +181,17 @@ func (s *Server) handleReviewPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	debugURL := ""
+	if record.Artifacts.DebugPNG != "" {
+		debugURL = s.artifactURL(record.ID, record.Artifacts.DebugPNG)
+	}
+
 	page, err := renderReviewPage(
 		record,
 		s.recordURL(record.ID),
 		s.artifactURL(record.ID, record.Artifacts.PreviewPNG),
 		s.artifactURL(record.ID, record.Artifacts.FinalPNG),
+		debugURL,
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
