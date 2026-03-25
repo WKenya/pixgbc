@@ -1,10 +1,10 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
-	"image"
 	"os"
 	"strings"
 
@@ -26,6 +26,7 @@ func (a *App) runConvert(ctx context.Context, args []string) int {
 		dither       string
 		crop         string
 		previewOut   string
+		emitReview   string
 		paletteMode  string
 		previewScale int
 	)
@@ -39,6 +40,7 @@ func (a *App) runConvert(ctx context.Context, args []string) int {
 	fs.StringVar(&dither, "dither", "ordered", "dither mode")
 	fs.StringVar(&crop, "crop", "fill", "crop mode")
 	fs.StringVar(&previewOut, "preview-out", "", "optional preview PNG path")
+	fs.StringVar(&emitReview, "emit-review", "", "review root dir, or temp")
 	fs.IntVar(&previewScale, "preview-scale", 6, "preview upscale factor")
 
 	if err := fs.Parse(args); err != nil {
@@ -55,14 +57,13 @@ func (a *App) runConvert(ctx context.Context, args []string) int {
 		return 2
 	}
 
-	file, err := os.Open(inputPath)
+	inputBytes, err := os.ReadFile(inputPath)
 	if err != nil {
-		_, _ = fmt.Fprintf(a.stderr, "open input: %v\n", err)
+		_, _ = fmt.Fprintf(a.stderr, "read input: %v\n", err)
 		return 1
 	}
-	defer file.Close()
 
-	decoded, err := ioimg.DecodeImage(file, a.limits)
+	decoded, err := ioimg.DecodeImage(bytes.NewReader(inputBytes), a.limits)
 	if err != nil {
 		_, _ = fmt.Fprintf(a.stderr, "decode input: %v\n", err)
 		return 1
@@ -97,6 +98,15 @@ func (a *App) runConvert(ctx context.Context, args []string) int {
 		}
 	}
 
+	if emitReview != "" {
+		rootDir, reviewDir, err := emitReviewBundle(ctx, emitReview, inputBytes, cfg, result)
+		if err != nil {
+			_, _ = fmt.Fprintf(a.stderr, "emit review: %v\n", err)
+			return 1
+		}
+		_, _ = fmt.Fprintf(a.stdout, "review_root\t%s\nreview_dir\t%s\n", rootDir, reviewDir)
+	}
+
 	return 0
 }
 
@@ -115,14 +125,4 @@ func parseSize(size string) (int, int, error) {
 	}
 
 	return width, height, nil
-}
-
-func writePNG(path string, img image.Image) error {
-	file, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	return ioimg.EncodePNG(file, img)
 }

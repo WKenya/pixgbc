@@ -13,11 +13,16 @@ func NewEngine() *Engine {
 }
 
 func (e *Engine) Run(ctx context.Context, src core.Source, cfg core.Config) (*core.Result, error) {
-	switch cfg.Mode {
+	normalized, err := core.NormalizeConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	switch normalized.Mode {
 	case core.ModeRelaxed:
-		return RunRelaxed(ctx, src, cfg)
+		return RunRelaxed(ctx, src, normalized)
 	case core.ModeCGBBG:
-		return RunCGBBG(ctx, src, cfg)
+		return RunCGBBG(ctx, src, normalized)
 	default:
 		return nil, core.ErrUnknownMode
 	}

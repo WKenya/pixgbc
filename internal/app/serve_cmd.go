@@ -21,9 +21,14 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 	}
 
 	server := &http.Server{
-		Addr:    addr,
-		Handler: internalweb.NewServer(a.engine(), a.limits),
+		Addr: addr,
 	}
+	handler, err := internalweb.NewServer(a.engine(), a.limits)
+	if err != nil {
+		_, _ = fmt.Fprintf(a.stderr, "init server: %v\n", err)
+		return 1
+	}
+	server.Handler = handler
 
 	_, _ = fmt.Fprintf(a.stdout, "pixgbc listening on http://%s\n", addr)
 	errCh := make(chan error, 1)

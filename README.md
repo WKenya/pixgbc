@@ -8,12 +8,12 @@ Current implementation slice:
 - shared engine boundary
 - `convert`, `inspect`, `palette list`, `serve`
 - relaxed-mode MVP renderer
-- embedded local web UI for single-image preview
+- review bundle emission to temp/user-selected disk
+- embedded local web UI with persisted review URLs/artifacts
 
 Not done yet:
 
 - strict `cgb-bg` renderer
-- review bundle storage/URLs
 - debug sheet export
 - golden-image fixtures
 
@@ -24,8 +24,18 @@ go run ./cmd/pixgbc --help
 go run ./cmd/pixgbc palette list
 go run ./cmd/pixgbc inspect --input path/to/input.png
 go run ./cmd/pixgbc convert --input path/to/input.png --output out.png
+go run ./cmd/pixgbc convert --input path/to/input.png --output out.png --emit-review temp
 go run ./cmd/pixgbc serve --addr 127.0.0.1:8080
 ```
+
+`convert --emit-review` writes `final.png`, `preview.png`, and `meta.json` into a review bundle directory and prints the bundle path.
+
+`serve` persists browser renders into a temp review store and exposes:
+
+- `POST /api/render`
+- `GET /api/renders/{id}`
+- `GET /api/renders/{id}/artifacts/{name}`
+- `GET /renders/{id}`
 
 ## Build
 

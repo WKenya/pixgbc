@@ -3,6 +3,7 @@ const fileInput = document.querySelector("#file");
 const renderButton = document.querySelector("#render");
 const statusNode = document.querySelector("#status");
 const previewImage = document.querySelector("#preview");
+const linksNode = document.querySelector("#links");
 
 async function loadPalettes() {
   const response = await fetch("/api/palettes");
@@ -42,8 +43,15 @@ async function renderImage() {
     return;
   }
 
-  const blob = await response.blob();
-  previewImage.src = URL.createObjectURL(blob);
+  const payload = await response.json();
+  previewImage.src = payload.preview_url;
+  linksNode.innerHTML = `
+    <a href="${payload.review_url}" target="_blank" rel="noreferrer">review page</a>
+    <span> · </span>
+    <a href="${payload.final_url}" target="_blank" rel="noreferrer">final png</a>
+    <span> · </span>
+    <a href="${payload.record_url}" target="_blank" rel="noreferrer">record json</a>
+  `;
   statusNode.textContent = "render complete";
   renderButton.disabled = false;
 }
