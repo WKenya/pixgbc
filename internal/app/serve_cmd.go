@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/WKenya/pixgbc/internal/review"
 	internalweb "github.com/WKenya/pixgbc/internal/web"
 )
 
@@ -54,17 +55,25 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 		limits.MaxFileBytes = maxUploadBytes
 	}
 
+	store, err := review.NewTempStore("", artifactTTL)
+	if err != nil {
+		_, _ = fmt.Fprintf(a.stderr, "init review store: %v\n", err)
+		return 1
+	}
+	if err := runStoreCleanup(ctx, store, time.Now()); err != nil {
+		_, _ = fmt.Fprintf(a.stderr, "startup cleanup: %v\n", err)
+		return 1
+	}
+
 	server := &http.Server{
 		Addr: addr,
 	}
-	handler, err := internalweb.NewServerWithConfig(a.engine(), limits, internalweb.ServerConfig{
+	handler := internalweb.NewServerWithStore(a.engine(), limits, store, internalweb.ServerConfig{
 		Token: token,
-	}, artifactTTL)
-	if err != nil {
-		_, _ = fmt.Fprintf(a.stderr, "init server: %v\n", err)
-		return 1
-	}
+	})
 	server.Handler = handler
+	stopCleanup := startStoreCleanupLoop(ctx, a.stderr, store, artifactTTL)
+	defer stopCleanup()
 
 	_, _ = fmt.Fprintf(a.stdout, "pixgbc listening on http://%s\n", addr)
 	errCh := make(chan error, 1)

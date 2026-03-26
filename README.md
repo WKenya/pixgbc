@@ -50,6 +50,8 @@ Checked-in sample inputs live in [samples/README.md](/Users/wesleykenyon/code/pi
 
 If `serve` binds beyond localhost, `--token` is required. The token works via `?token=...` or `Authorization: Bearer ...`, and the web UI now propagates query-token links for protected review/artifact pages.
 
+`serve --artifact-ttl` now does an initial expired-artifact sweep at startup and keeps cleaning old review bundles on an interval while the server runs.
+
 `serve` persists browser renders into a temp review store and exposes:
 
 - `POST /api/render`
