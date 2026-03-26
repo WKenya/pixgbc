@@ -173,6 +173,9 @@ func TestRenderPersistsFormConfig(t *testing.T) {
 		"height":          "80",
 		"crop":            "fit",
 		"dither":          "none",
+		"brightness":      "0.1",
+		"contrast":        "-0.2",
+		"gamma":           "1.25",
 		"alpha_mode":      "reserve-color0",
 		"bg_color":        "#112233",
 		"preview_scale":   "3",
@@ -226,6 +229,9 @@ func TestRenderPersistsFormConfig(t *testing.T) {
 	if record.Config.Dither != "none" {
 		t.Fatalf("record.Config.Dither = %q, want none", record.Config.Dither)
 	}
+	if record.Config.Brightness != 0.1 || record.Config.Contrast != -0.2 || record.Config.Gamma != 1.25 {
+		t.Fatalf("record.Config tone = %v/%v/%v, want 0.1/-0.2/1.25", record.Config.Brightness, record.Config.Contrast, record.Config.Gamma)
+	}
 	if record.Config.PaletteStrategy != "extract" {
 		t.Fatalf("record.Config.PaletteStrategy = %q, want extract", record.Config.PaletteStrategy)
 	}
@@ -271,6 +277,41 @@ func TestRenderRejectsInvalidBGColor(t *testing.T) {
 	}
 	if err := writer.WriteField("bg_color", "#12"); err != nil {
 		t.Fatalf("WriteField(bg_color) error = %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("writer.Close() error = %v", err)
+	}
+	bodyBytes := append([]byte(nil), body.Bytes()...)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/render", bytes.NewReader(bodyBytes))
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("POST /api/render status = %d, want 400", recorder.Code)
+	}
+}
+
+func TestRenderRejectsInvalidGamma(t *testing.T) {
+	store, err := review.NewTempStore(t.TempDir(), time.Hour)
+	if err != nil {
+		t.Fatalf("NewTempStore() error = %v", err)
+	}
+
+	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store, ServerConfig{})
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "bad-gamma.png")
+	if err != nil {
+		t.Fatalf("CreateFormFile() error = %v", err)
+	}
+	if _, err := part.Write(makePNG(t)); err != nil {
+		t.Fatalf("part.Write() error = %v", err)
+	}
+	if err := writer.WriteField("gamma", "oops"); err != nil {
+		t.Fatalf("WriteField(gamma) error = %v", err)
 	}
 	if err := writer.Close(); err != nil {
 		t.Fatalf("writer.Close() error = %v", err)

@@ -90,6 +90,9 @@ func parseConvertOptions(args []string, stderr io.Writer) (convertOptions, error
 		tileSize      int
 		colorsPerTile int
 		maxPalettes   int
+		brightness    float64
+		contrast      float64
+		gamma         float64
 		emitDebug     bool
 	)
 
@@ -112,6 +115,9 @@ func parseConvertOptions(args []string, stderr io.Writer) (convertOptions, error
 	fs.IntVar(&tileSize, "tile-size", defaults.TileSize, "tile size for strict mode")
 	fs.IntVar(&colorsPerTile, "colors-per-tile", defaults.ColorsPerTile, "color budget per tile")
 	fs.IntVar(&maxPalettes, "max-palettes", defaults.MaxPalettes, "max shared palettes for strict mode")
+	fs.Float64Var(&brightness, "brightness", 0, "tone brightness adjustment")
+	fs.Float64Var(&contrast, "contrast", 0, "tone contrast adjustment")
+	fs.Float64Var(&gamma, "gamma", defaults.Gamma, "tone gamma adjustment")
 	fs.BoolVar(&emitDebug, "debug", false, "emit debug artifacts when supported")
 
 	parseArgs := args
@@ -162,6 +168,9 @@ func parseConvertOptions(args []string, stderr io.Writer) (convertOptions, error
 		PalettePreset:   paletteKey,
 		Dither:          core.DitherMode(dither),
 		CropMode:        core.CropMode(crop),
+		Brightness:      brightness,
+		Contrast:        contrast,
+		Gamma:           gamma,
 		PreviewScale:    previewScale,
 		AlphaMode:       core.AlphaMode(alphaMode),
 		BackgroundColor: backgroundColor,

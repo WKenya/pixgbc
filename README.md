@@ -39,13 +39,13 @@ make sample-outputs
 
 `convert --mode cgb-bg` runs the stricter tile/palette-bank solver. Add `--debug` to persist a composed debug sheet into the review bundle.
 
-`convert` also accepts `-o`, positional input, `--scale`, `--alpha`, `--bg`, `--tile-size`, `--colors-per-tile`, and `--max-palettes`.
+`convert` also accepts `-o`, positional input, `--scale`, `--alpha`, `--bg`, `--brightness`, `--contrast`, `--gamma`, `--tile-size`, `--colors-per-tile`, and `--max-palettes`.
 
 Checked-in sample inputs live in [samples/README.md](/Users/wesleykenyon/code/pixgbc/samples/README.md). `make sample-outputs` rebuilds the example PNG outputs and a strict-mode review bundle under `samples/`.
 
 `inspect --json` now reports dominant colors, estimated strict-mode fit, and recommended mode/palette preset.
 
-`serve` exposes browser controls for token, mode, preset vs extract, width/height, crop, dither, alpha mode, background color, preview scale, strict-mode tile params, and debug output.
+`serve` exposes browser controls for token, mode, preset vs extract, width/height, crop, dither, alpha mode, background color, brightness/contrast/gamma, preview scale, strict-mode tile params, and debug output.
 
 If `serve` binds beyond localhost, `--token` is required. The token works via `?token=...` or `Authorization: Bearer ...`, and the web UI now propagates query-token links for protected review/artifact pages.
 

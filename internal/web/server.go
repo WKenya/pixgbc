@@ -327,6 +327,18 @@ func parseRenderConfig(r *http.Request) (core.Config, error) {
 	if err != nil {
 		return core.Config{}, fmt.Errorf("invalid preview_scale: %w", err)
 	}
+	brightness, err := formFloatDefault(r, "brightness", 0)
+	if err != nil {
+		return core.Config{}, fmt.Errorf("invalid brightness: %w", err)
+	}
+	contrast, err := formFloatDefault(r, "contrast", 0)
+	if err != nil {
+		return core.Config{}, fmt.Errorf("invalid contrast: %w", err)
+	}
+	gamma, err := formFloatDefault(r, "gamma", defaults.Gamma)
+	if err != nil {
+		return core.Config{}, fmt.Errorf("invalid gamma: %w", err)
+	}
 	tileSize, err := formIntDefault(r, "tile_size", defaults.TileSize)
 	if err != nil {
 		return core.Config{}, fmt.Errorf("invalid tile_size: %w", err)
@@ -346,6 +358,9 @@ func parseRenderConfig(r *http.Request) (core.Config, error) {
 
 	cfg.TargetWidth = width
 	cfg.TargetHeight = height
+	cfg.Brightness = brightness
+	cfg.Contrast = contrast
+	cfg.Gamma = gamma
 	cfg.PreviewScale = previewScale
 	cfg.TileSize = tileSize
 	cfg.ColorsPerTile = colorsPerTile
@@ -369,6 +384,14 @@ func formIntDefault(r *http.Request, key string, fallback int) (int, error) {
 		return fallback, nil
 	}
 	return strconv.Atoi(raw)
+}
+
+func formFloatDefault(r *http.Request, key string, fallback float64) (float64, error) {
+	raw := strings.TrimSpace(r.FormValue(key))
+	if raw == "" {
+		return fallback, nil
+	}
+	return strconv.ParseFloat(raw, 64)
 }
 
 func formBool(r *http.Request, key string) bool {

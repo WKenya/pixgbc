@@ -24,6 +24,9 @@ func TestParseConvertOptions(t *testing.T) {
 		"--tile-size", "12",
 		"--colors-per-tile", "3",
 		"--max-palettes", "6",
+		"--brightness", "0.1",
+		"--contrast", "-0.2",
+		"--gamma", "1.25",
 		"--debug",
 	}, &stderr)
 	if err != nil {
@@ -53,6 +56,9 @@ func TestParseConvertOptions(t *testing.T) {
 	}
 	if opts.Config.TileSize != 12 || opts.Config.ColorsPerTile != 3 || opts.Config.MaxPalettes != 6 {
 		t.Fatalf("strict params = %d/%d/%d, want 12/3/6", opts.Config.TileSize, opts.Config.ColorsPerTile, opts.Config.MaxPalettes)
+	}
+	if opts.Config.Brightness != 0.1 || opts.Config.Contrast != -0.2 || opts.Config.Gamma != 1.25 {
+		t.Fatalf("tone params = %v/%v/%v, want 0.1/-0.2/1.25", opts.Config.Brightness, opts.Config.Contrast, opts.Config.Gamma)
 	}
 	if opts.Config.BackgroundColor != (color.NRGBA{R: 0x11, G: 0x22, B: 0x33, A: 0xFF}) {
 		t.Fatalf("BackgroundColor = %#v, want #112233", opts.Config.BackgroundColor)
