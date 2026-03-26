@@ -82,6 +82,32 @@ func BenchmarkEngineCGBBG(b *testing.B) {
 	}
 }
 
+func BenchmarkEngineCGBBGLargeInput(b *testing.B) {
+	engine := NewEngine()
+	src := benchmarkSource(2048, 1536, false)
+	cfg := core.Config{
+		Mode:          core.ModeCGBBG,
+		TargetWidth:   160,
+		TargetHeight:  144,
+		PalettePreset: "gbc-olive",
+		Dither:        core.DitherOrdered,
+		CropMode:      core.CropFill,
+		PreviewScale:  6,
+		AlphaMode:     core.AlphaFlatten,
+		TileSize:      8,
+		ColorsPerTile: 4,
+		MaxPalettes:   8,
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := engine.Run(context.Background(), src, cfg); err != nil {
+			b.Fatalf("Run() error = %v", err)
+		}
+	}
+}
+
 func benchmarkSource(width, height int, withAlpha bool) *source.SingleImage {
 	img := image.NewNRGBA(image.Rect(0, 0, width, height))
 	for y := 0; y < height; y++ {

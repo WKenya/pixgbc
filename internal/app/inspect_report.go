@@ -72,17 +72,16 @@ func buildInspectReport(img image.Image, meta core.SourceMeta) (inspectReport, e
 }
 
 func analyzeStrictSuitability(img image.Image, meta core.SourceMeta) (strictModeAnalysis, []string) {
-	working := cloneToNRGBA(img)
-	if meta.HasAlpha {
-		working = preprocess.Flatten(working, core.DefaultConfig().BackgroundColor)
-	}
 	normalized := preprocess.ResizeToCanvas(
-		working,
+		img,
 		core.DefaultConfig().TargetWidth,
 		core.DefaultConfig().TargetHeight,
 		core.DefaultConfig().CropMode,
 		core.DefaultConfig().BackgroundColor,
 	)
+	if meta.HasAlpha {
+		normalized = preprocess.Flatten(normalized, core.DefaultConfig().BackgroundColor)
+	}
 
 	tilePalettes, uniqueCount := inspectTilePalettes(normalized)
 	banks := palette.ClusterTilePalettes(tilePalettes, core.DefaultConfig().MaxPalettes, core.DefaultConfig().ColorsPerTile)
@@ -152,17 +151,6 @@ func copyTileToOrigin(img *image.NRGBA, rect image.Rectangle) *image.NRGBA {
 	for y := rect.Min.Y; y < rect.Max.Y; y++ {
 		for x := rect.Min.X; x < rect.Max.X; x++ {
 			out.SetNRGBA(x-rect.Min.X, y-rect.Min.Y, img.NRGBAAt(x, y))
-		}
-	}
-	return out
-}
-
-func cloneToNRGBA(img image.Image) *image.NRGBA {
-	bounds := img.Bounds()
-	out := image.NewNRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy()))
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			out.Set(x-bounds.Min.X, y-bounds.Min.Y, img.At(x, y))
 		}
 	}
 	return out

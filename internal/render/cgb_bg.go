@@ -31,23 +31,21 @@ func RunCGBBG(ctx context.Context, src core.Source, cfg core.Config) (*core.Resu
 		return nil, err
 	}
 
-	working := cloneAsNRGBA(frame.Image)
 	var guidedPreset *palette.Preset
 	if preset, ok := palette.GetPreset(cfg.PalettePreset); ok {
 		cfg = applyPresetTuning(cfg, preset)
 		guidedPreset = &preset
 	}
 
-	if cfg.AlphaMode == core.AlphaFlatten {
-		working = preprocess.Flatten(working, cfg.BackgroundColor)
-	}
-	working = preprocess.ApplyTone(working, cfg.Brightness, cfg.Contrast, cfg.Gamma)
-
 	bg := cfg.BackgroundColor
 	if cfg.AlphaMode == core.AlphaReserve {
 		bg = color.NRGBA{}
 	}
-	normalized := preprocess.ResizeToCanvas(working, cfg.TargetWidth, cfg.TargetHeight, cfg.CropMode, bg)
+	normalized := preprocess.ResizeToCanvas(frame.Image, cfg.TargetWidth, cfg.TargetHeight, cfg.CropMode, bg)
+	if cfg.AlphaMode == core.AlphaFlatten {
+		normalized = preprocess.Flatten(normalized, cfg.BackgroundColor)
+	}
+	normalized = preprocess.ApplyTone(normalized, cfg.Brightness, cfg.Contrast, cfg.Gamma)
 
 	tiles := splitIntoTiles(normalized, cfg.TileSize)
 	tilePalettes := make([][]color.NRGBA, 0, len(tiles))

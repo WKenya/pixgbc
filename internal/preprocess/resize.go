@@ -7,13 +7,16 @@ import (
 	"github.com/WKenya/pixgbc/internal/core"
 )
 
-func ResizeToCanvas(img *image.NRGBA, width, height int, cropMode core.CropMode, bg color.NRGBA) *image.NRGBA {
+func ResizeToCanvas(img image.Image, width, height int, cropMode core.CropMode, bg color.NRGBA) *image.NRGBA {
 	srcW := img.Bounds().Dx()
 	srcH := img.Bounds().Dy()
 	if srcW == width && srcH == height {
 		out := image.NewNRGBA(image.Rect(0, 0, width, height))
-		copy(out.Pix, img.Pix)
-		return out
+		if src, ok := img.(*image.NRGBA); ok {
+			copy(out.Pix, src.Pix)
+			return out
+		}
+		return scaleNearest(img, width, height)
 	}
 
 	scaleX := float64(width) / float64(srcW)

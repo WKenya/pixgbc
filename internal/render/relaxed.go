@@ -22,24 +22,20 @@ func RunRelaxed(ctx context.Context, src core.Source, cfg core.Config) (*core.Re
 		return nil, err
 	}
 
-	working := cloneAsNRGBA(frame.Image)
 	preset, hasPreset := palette.GetPreset(cfg.PalettePreset)
 	if hasPreset {
 		cfg = applyPresetTuning(cfg, preset)
 	}
 
-	if cfg.AlphaMode == core.AlphaFlatten {
-		working = preprocess.Flatten(working, cfg.BackgroundColor)
-	}
-
-	working = preprocess.ApplyTone(working, cfg.Brightness, cfg.Contrast, cfg.Gamma)
-
 	bg := cfg.BackgroundColor
 	if cfg.AlphaMode == core.AlphaReserve {
 		bg = color.NRGBA{}
 	}
-
-	normalized := preprocess.ResizeToCanvas(working, cfg.TargetWidth, cfg.TargetHeight, cfg.CropMode, bg)
+	normalized := preprocess.ResizeToCanvas(frame.Image, cfg.TargetWidth, cfg.TargetHeight, cfg.CropMode, bg)
+	if cfg.AlphaMode == core.AlphaFlatten {
+		normalized = preprocess.Flatten(normalized, cfg.BackgroundColor)
+	}
+	normalized = preprocess.ApplyTone(normalized, cfg.Brightness, cfg.Contrast, cfg.Gamma)
 	paletteColors, err := resolvePalette(normalized, cfg)
 	if err != nil {
 		return nil, err
@@ -102,15 +98,4 @@ func applyPresetTuning(cfg core.Config, preset palette.Preset) core.Config {
 		cfg.Gamma = preset.GammaAdjust
 	}
 	return cfg
-}
-
-func cloneAsNRGBA(img image.Image) *image.NRGBA {
-	bounds := img.Bounds()
-	out := image.NewNRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy()))
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			out.Set(x-bounds.Min.X, y-bounds.Min.Y, img.At(x, y))
-		}
-	}
-	return out
 }
