@@ -1,4 +1,5 @@
 const paletteModeSelect = document.querySelector("#palette-mode");
+const tokenInput = document.querySelector("#token");
 const paletteSelect = document.querySelector("#palette");
 const modeSelect = document.querySelector("#mode");
 const widthInput = document.querySelector("#width");
@@ -17,9 +18,41 @@ const renderButton = document.querySelector("#render");
 const statusNode = document.querySelector("#status");
 const previewImage = document.querySelector("#preview");
 const linksNode = document.querySelector("#links");
+const tokenStorageKey = "pixgbc.token";
+
+function activeToken() {
+  return tokenInput.value.trim();
+}
+
+function withToken(url) {
+  const token = activeToken();
+  if (!token) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}token=${encodeURIComponent(token)}`;
+}
+
+function restoreToken() {
+  const params = new URLSearchParams(window.location.search);
+  const tokenFromURL = params.get("token");
+  const tokenFromStorage = window.localStorage.getItem(tokenStorageKey);
+  tokenInput.value = tokenFromURL || tokenFromStorage || "";
+}
+
+function persistToken() {
+  const token = activeToken();
+  if (token) {
+    window.localStorage.setItem(tokenStorageKey, token);
+  } else {
+    window.localStorage.removeItem(tokenStorageKey);
+  }
+}
 
 async function loadPalettes() {
-  const response = await fetch("/api/palettes");
+  const response = await fetch(withToken("/api/palettes"));
+  if (!response.ok) {
+    statusNode.textContent = await response.text();
+    return;
+  }
   const palettes = await response.json();
 
   paletteSelect.innerHTML = "";
@@ -60,7 +93,7 @@ async function renderImage() {
     form.set("debug", "1");
   }
 
-  const response = await fetch("/api/render", {
+  const response = await fetch(withToken("/api/render"), {
     method: "POST",
     body: form,
   });
@@ -95,6 +128,11 @@ function syncControls() {
   debugInput.checked = debugInput.checked || strictMode;
 }
 
+tokenInput.addEventListener("change", () => {
+  persistToken();
+  void loadPalettes();
+});
+
 renderButton.addEventListener("click", () => {
   void renderImage();
 });
@@ -102,5 +140,6 @@ renderButton.addEventListener("click", () => {
 paletteModeSelect.addEventListener("change", syncControls);
 modeSelect.addEventListener("change", syncControls);
 
+restoreToken();
 void loadPalettes();
 syncControls();

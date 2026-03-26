@@ -37,9 +37,9 @@ go run ./cmd/pixgbc serve --listen 127.0.0.1:8080 --artifact-ttl 24h --max-uploa
 
 `inspect --json` now reports dominant colors, estimated strict-mode fit, and recommended mode/palette preset.
 
-`serve` exposes browser controls for mode, preset vs extract, width/height, crop, dither, alpha mode, background color, preview scale, strict-mode tile params, and debug output.
+`serve` exposes browser controls for token, mode, preset vs extract, width/height, crop, dither, alpha mode, background color, preview scale, strict-mode tile params, and debug output.
 
-If `serve` binds beyond localhost, `--token` is required. The token works via `?token=...` or `Authorization: Bearer ...`.
+If `serve` binds beyond localhost, `--token` is required. The token works via `?token=...` or `Authorization: Bearer ...`, and the web UI now propagates query-token links for protected review/artifact pages.
 
 `serve` persists browser renders into a temp review store and exposes:
 

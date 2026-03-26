@@ -61,7 +61,11 @@ func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	_, _ = io.WriteString(w, "ok\n")
 }
 
-func (s *Server) handlePalettes(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) handlePalettes(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(r) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 	type response struct {
 		Key         string   `json:"key"`
 		DisplayName string   `json:"display_name"`
@@ -137,13 +141,13 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 
 	response := RenderResponse{
 		ID:         record.ID,
-		ReviewURL:  s.reviewURL(record.ID),
-		RecordURL:  s.recordURL(record.ID),
-		PreviewURL: s.artifactURL(record.ID, record.Artifacts.PreviewPNG),
-		FinalURL:   s.artifactURL(record.ID, record.Artifacts.FinalPNG),
+		ReviewURL:  s.reviewURL(record.ID, s.requestTokenQuery(r)),
+		RecordURL:  s.recordURL(record.ID, s.requestTokenQuery(r)),
+		PreviewURL: s.artifactURL(record.ID, record.Artifacts.PreviewPNG, s.requestTokenQuery(r)),
+		FinalURL:   s.artifactURL(record.ID, record.Artifacts.FinalPNG, s.requestTokenQuery(r)),
 	}
 	if record.Artifacts.DebugPNG != "" {
-		response.DebugURL = s.artifactURL(record.ID, record.Artifacts.DebugPNG)
+		response.DebugURL = s.artifactURL(record.ID, record.Artifacts.DebugPNG, s.requestTokenQuery(r))
 	}
 	writeJSON(w, http.StatusOK, response)
 }
@@ -203,14 +207,14 @@ func (s *Server) handleReviewPage(w http.ResponseWriter, r *http.Request) {
 
 	debugURL := ""
 	if record.Artifacts.DebugPNG != "" {
-		debugURL = s.artifactURL(record.ID, record.Artifacts.DebugPNG)
+		debugURL = s.artifactURL(record.ID, record.Artifacts.DebugPNG, s.requestTokenQuery(r))
 	}
 
 	page, err := renderReviewPage(
 		record,
-		s.recordURL(record.ID),
-		s.artifactURL(record.ID, record.Artifacts.PreviewPNG),
-		s.artifactURL(record.ID, record.Artifacts.FinalPNG),
+		s.recordURL(record.ID, s.requestTokenQuery(r)),
+		s.artifactURL(record.ID, record.Artifacts.PreviewPNG, s.requestTokenQuery(r)),
+		s.artifactURL(record.ID, record.Artifacts.FinalPNG, s.requestTokenQuery(r)),
 		debugURL,
 	)
 	if err != nil {
@@ -234,16 +238,16 @@ func (s *Server) staticHandler() http.Handler {
 	return http.FileServer(http.FS(sub))
 }
 
-func (s *Server) recordURL(id string) string {
-	return "/api/renders/" + id
+func (s *Server) recordURL(id string, token string) string {
+	return withTokenQuery("/api/renders/"+id, token)
 }
 
-func (s *Server) artifactURL(id, name string) string {
-	return path.Join("/api/renders", id, "artifacts", name)
+func (s *Server) artifactURL(id, name string, token string) string {
+	return withTokenQuery(path.Join("/api/renders", id, "artifacts", name), token)
 }
 
-func (s *Server) reviewURL(id string) string {
-	return "/renders/" + id
+func (s *Server) reviewURL(id string, token string) string {
+	return withTokenQuery("/renders/"+id, token)
 }
 
 func (s *Server) authorized(r *http.Request) bool {
@@ -258,6 +262,24 @@ func (s *Server) authorized(r *http.Request) bool {
 		return true
 	}
 	return false
+}
+
+func (s *Server) requestTokenQuery(r *http.Request) string {
+	if s.cfg.Token == "" {
+		return ""
+	}
+	token := strings.TrimSpace(r.URL.Query().Get("token"))
+	if token == s.cfg.Token {
+		return token
+	}
+	return ""
+}
+
+func withTokenQuery(urlPath string, token string) string {
+	if token == "" {
+		return urlPath
+	}
+	return urlPath + "?token=" + token
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

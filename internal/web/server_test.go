@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -359,6 +360,98 @@ func TestRenderRejectsOversizeBodyByConfiguredLimit(t *testing.T) {
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("POST /api/render status = %d, want 400, body = %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestRenderResponseURLsPreserveTokenQuery(t *testing.T) {
+	store, err := review.NewTempStore(t.TempDir(), time.Hour)
+	if err != nil {
+		t.Fatalf("NewTempStore() error = %v", err)
+	}
+
+	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store, ServerConfig{
+		Token: "secret-token",
+	})
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "auth-links.png")
+	if err != nil {
+		t.Fatalf("CreateFormFile() error = %v", err)
+	}
+	if _, err := part.Write(makePNG(t)); err != nil {
+		t.Fatalf("part.Write() error = %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("writer.Close() error = %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/render?token=secret-token", bytes.NewReader(body.Bytes()))
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("POST /api/render status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+
+	var response RenderResponse
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	for _, value := range []string{response.ReviewURL, response.RecordURL, response.PreviewURL, response.FinalURL} {
+		if !strings.Contains(value, "token=secret-token") {
+			t.Fatalf("url %q missing propagated token", value)
+		}
+	}
+}
+
+func TestReviewPagePreservesTokenLinks(t *testing.T) {
+	store, err := review.NewTempStore(t.TempDir(), time.Hour)
+	if err != nil {
+		t.Fatalf("NewTempStore() error = %v", err)
+	}
+
+	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store, ServerConfig{
+		Token: "secret-token",
+	})
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "review-links.png")
+	if err != nil {
+		t.Fatalf("CreateFormFile() error = %v", err)
+	}
+	if _, err := part.Write(makePNG(t)); err != nil {
+		t.Fatalf("part.Write() error = %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("writer.Close() error = %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/render?token=secret-token", bytes.NewReader(body.Bytes()))
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("POST /api/render status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+
+	var response RenderResponse
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+
+	reviewRequest := httptest.NewRequest(http.MethodGet, response.ReviewURL, nil)
+	reviewRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(reviewRecorder, reviewRequest)
+
+	if reviewRecorder.Code != http.StatusOK {
+		t.Fatalf("GET %s status = %d, body = %s", response.ReviewURL, reviewRecorder.Code, reviewRecorder.Body.String())
+	}
+	if !strings.Contains(reviewRecorder.Body.String(), "token=secret-token") {
+		t.Fatalf("review page missing tokenized links: %s", reviewRecorder.Body.String())
 	}
 }
 
