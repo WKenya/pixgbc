@@ -64,12 +64,14 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 		_, _ = fmt.Fprintf(a.stderr, "startup cleanup: %v\n", err)
 		return 1
 	}
+	_, _ = fmt.Fprintf(a.stdout, "startup cleanup complete ttl=%s\n", artifactTTL)
 
 	server := &http.Server{
 		Addr: addr,
 	}
 	handler := internalweb.NewServerWithStore(a.engine(), limits, store, internalweb.ServerConfig{
-		Token: token,
+		Token:     token,
+		LogOutput: a.stdout,
 	})
 	server.Handler = handler
 	stopCleanup := startStoreCleanupLoop(ctx, a.stderr, store, artifactTTL)

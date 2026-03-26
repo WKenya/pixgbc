@@ -51,6 +51,8 @@ If `serve` binds beyond localhost, `--token` is required. The token works via `?
 
 `serve --artifact-ttl` now does an initial expired-artifact sweep at startup and keeps cleaning old review bundles on an interval while the server runs.
 
+`serve` now logs startup cleanup, cleanup sweeps, HTTP requests, and render start/done events to stdout for easier local monitoring.
+
 `serve` persists browser renders into a temp review store and exposes:
 
 - `POST /api/render`

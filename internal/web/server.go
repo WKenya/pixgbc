@@ -29,7 +29,8 @@ type Server struct {
 }
 
 type ServerConfig struct {
-	Token string
+	Token     string
+	LogOutput io.Writer
 }
 
 func NewServer(engine core.Engine, limits ioimg.Limits) (http.Handler, error) {
@@ -54,7 +55,7 @@ func NewServerWithStore(engine core.Engine, limits ioimg.Limits, store review.St
 	mux.HandleFunc("GET /api/renders/{id}/artifacts/{name}", server.handleGetArtifact)
 	mux.HandleFunc("GET /renders/{id}", server.handleReviewPage)
 	mux.Handle("/", server.staticHandler())
-	return mux
+	return server.loggingMiddleware(mux)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
@@ -126,6 +127,15 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	s.logf(
+		"render start mode=%s palette_mode=%s palette=%s source=%dx%d bytes=%d",
+		cfg.Mode,
+		cfg.PaletteStrategy,
+		cfg.PalettePreset,
+		decoded.Meta.Width,
+		decoded.Meta.Height,
+		len(inputBytes),
+	)
 
 	result, err := s.engine.Run(r.Context(), source.NewSingleImage(decoded.Image, decoded.Meta), cfg)
 	if err != nil {
@@ -149,6 +159,14 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 	if record.Artifacts.DebugPNG != "" {
 		response.DebugURL = s.artifactURL(record.ID, record.Artifacts.DebugPNG, s.requestTokenQuery(r))
 	}
+	s.logf(
+		"render done id=%s mode=%s output=%dx%d review=%s",
+		record.ID,
+		record.Mode,
+		record.OutputWidth,
+		record.OutputHeight,
+		response.ReviewURL,
+	)
 	writeJSON(w, http.StatusOK, response)
 }
 

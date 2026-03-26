@@ -27,11 +27,12 @@ func runStoreCleanup(ctx context.Context, store review.Store, now time.Time) err
 	return store.CleanupExpired(ctx, now.UTC())
 }
 
-func startStoreCleanupLoop(ctx context.Context, stderr io.Writer, store review.Store, ttl time.Duration) func() {
+func startStoreCleanupLoop(ctx context.Context, stdout io.Writer, store review.Store, ttl time.Duration) func() {
 	interval := cleanupInterval(ttl)
 	if interval <= 0 {
 		return func() {}
 	}
+	_, _ = fmt.Fprintf(stdout, "cleanup loop interval=%s\n", interval)
 
 	ticker := time.NewTicker(interval)
 	done := make(chan struct{})
@@ -45,8 +46,10 @@ func startStoreCleanupLoop(ctx context.Context, stderr io.Writer, store review.S
 				return
 			case tick := <-ticker.C:
 				if err := runStoreCleanup(ctx, store, tick); err != nil && ctx.Err() == nil {
-					_, _ = fmt.Fprintf(stderr, "cleanup: %v\n", err)
+					_, _ = fmt.Fprintf(stdout, "cleanup error=%v\n", err)
+					continue
 				}
+				_, _ = fmt.Fprintf(stdout, "cleanup sweep at=%s\n", tick.UTC().Format(time.RFC3339))
 			}
 		}
 	}()
