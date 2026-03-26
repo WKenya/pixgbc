@@ -53,6 +53,8 @@ If `serve` binds beyond localhost, `--token` is required. The token works via `?
 
 `serve` now logs startup cleanup, cleanup sweeps, HTTP requests, and render start/done events to stdout for easier local monitoring.
 
+`serve` also keeps a session render history in the browser UI so you can jump back to recent review pages, previews, finals, records, and debug sheets without rerendering.
+
 `serve` persists browser renders into a temp review store and exposes:
 
 - `POST /api/render`

@@ -49,6 +49,7 @@ type ReviewRecord struct {
 type Store interface {
 	Save(ctx context.Context, record ReviewRecord, files map[string][]byte) error
 	Get(ctx context.Context, id string) (ReviewRecord, error)
+	List(ctx context.Context, limit int) ([]ReviewRecord, error)
 	OpenArtifact(ctx context.Context, id string, name string) (io.ReadSeekCloser, error)
 	Delete(ctx context.Context, id string) error
 	CleanupExpired(ctx context.Context, now time.Time) error

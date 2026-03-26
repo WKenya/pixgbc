@@ -8,3 +8,16 @@ type RenderResponse struct {
 	FinalURL   string `json:"final_url"`
 	DebugURL   string `json:"debug_url,omitempty"`
 }
+
+type RenderHistoryItem struct {
+	ID         string `json:"id"`
+	CreatedAt  string `json:"created_at"`
+	Mode       string `json:"mode"`
+	Width      int    `json:"width"`
+	Height     int    `json:"height"`
+	PreviewURL string `json:"preview_url"`
+	ReviewURL  string `json:"review_url"`
+	RecordURL  string `json:"record_url"`
+	FinalURL   string `json:"final_url"`
+	DebugURL   string `json:"debug_url,omitempty"`
+}

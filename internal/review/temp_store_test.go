@@ -125,3 +125,31 @@ func TestTempStoreCleanupExpired(t *testing.T) {
 		t.Fatalf("Get(new) error = %v", err)
 	}
 }
+
+func TestTempStoreListNewestFirst(t *testing.T) {
+	store, err := NewTempStore(t.TempDir(), time.Hour)
+	if err != nil {
+		t.Fatalf("NewTempStore() error = %v", err)
+	}
+
+	for _, record := range []ReviewRecord{
+		{ID: "old", CreatedAt: time.Date(2026, 3, 25, 10, 0, 0, 0, time.UTC), Artifacts: ArtifactManifest{MetaJSON: DefaultMetaJSONName}},
+		{ID: "new", CreatedAt: time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC), Artifacts: ArtifactManifest{MetaJSON: DefaultMetaJSONName}},
+		{ID: "mid", CreatedAt: time.Date(2026, 3, 25, 11, 0, 0, 0, time.UTC), Artifacts: ArtifactManifest{MetaJSON: DefaultMetaJSONName}},
+	} {
+		if err := store.Save(context.Background(), record, map[string][]byte{}); err != nil {
+			t.Fatalf("Save(%s) error = %v", record.ID, err)
+		}
+	}
+
+	records, err := store.List(context.Background(), 2)
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if len(records) != 2 {
+		t.Fatalf("len(List()) = %d, want 2", len(records))
+	}
+	if records[0].ID != "new" || records[1].ID != "mid" {
+		t.Fatalf("List() order = %q, %q; want new, mid", records[0].ID, records[1].ID)
+	}
+}

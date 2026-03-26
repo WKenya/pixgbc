@@ -21,6 +21,7 @@ func (s *cleanupStore) Save(context.Context, review.ReviewRecord, map[string][]b
 func (s *cleanupStore) Get(context.Context, string) (review.ReviewRecord, error) {
 	return review.ReviewRecord{}, nil
 }
+func (s *cleanupStore) List(context.Context, int) ([]review.ReviewRecord, error) { return nil, nil }
 func (s *cleanupStore) OpenArtifact(context.Context, string, string) (io.ReadSeekCloser, error) {
 	return nil, nil
 }

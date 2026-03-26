@@ -258,6 +258,58 @@ func TestRenderPersistsFormConfig(t *testing.T) {
 	}
 }
 
+func TestListRendersReturnsNewestFirst(t *testing.T) {
+	store, err := review.NewTempStore(t.TempDir(), time.Hour)
+	if err != nil {
+		t.Fatalf("NewTempStore() error = %v", err)
+	}
+	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store, ServerConfig{})
+
+	for _, name := range []string{"one.png", "two.png"} {
+		var body bytes.Buffer
+		writer := multipart.NewWriter(&body)
+		part, err := writer.CreateFormFile("file", name)
+		if err != nil {
+			t.Fatalf("CreateFormFile() error = %v", err)
+		}
+		if _, err := part.Write(makePNG(t)); err != nil {
+			t.Fatalf("part.Write() error = %v", err)
+		}
+		if err := writer.Close(); err != nil {
+			t.Fatalf("writer.Close() error = %v", err)
+		}
+
+		request := httptest.NewRequest(http.MethodPost, "/api/render", bytes.NewReader(body.Bytes()))
+		request.Header.Set("Content-Type", writer.FormDataContentType())
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("POST /api/render status = %d, body = %s", recorder.Code, recorder.Body.String())
+		}
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/renders?limit=10", nil)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("GET /api/renders status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+
+	var items []RenderHistoryItem
+	if err := json.Unmarshal(recorder.Body.Bytes(), &items); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("len(items) = %d, want 2", len(items))
+	}
+	if items[0].ID == items[1].ID {
+		t.Fatalf("items ids repeated: %#v", items)
+	}
+	if items[0].PreviewURL == "" || items[0].ReviewURL == "" {
+		t.Fatalf("history item missing urls: %#v", items[0])
+	}
+}
+
 func TestRenderRejectsInvalidBGColor(t *testing.T) {
 	store, err := review.NewTempStore(t.TempDir(), time.Hour)
 	if err != nil {

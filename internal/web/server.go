@@ -50,6 +50,7 @@ func NewServerWithStore(engine core.Engine, limits ioimg.Limits, store review.St
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", server.handleHealth)
 	mux.HandleFunc("GET /api/palettes", server.handlePalettes)
+	mux.HandleFunc("GET /api/renders", server.handleListRenders)
 	mux.HandleFunc("POST /api/render", server.handleRender)
 	mux.HandleFunc("GET /api/renders/{id}", server.handleGetRecord)
 	mux.HandleFunc("GET /api/renders/{id}/artifacts/{name}", server.handleGetArtifact)
@@ -168,6 +169,45 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 		response.ReviewURL,
 	)
 	writeJSON(w, http.StatusOK, response)
+}
+
+func (s *Server) handleListRenders(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(r) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	limit, err := formIntDefault(r, "limit", 20)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("invalid limit: %v", err), http.StatusBadRequest)
+		return
+	}
+	records, err := s.store.List(r.Context(), limit)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("list renders: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	token := s.requestTokenQuery(r)
+	out := make([]RenderHistoryItem, 0, len(records))
+	for _, record := range records {
+		item := RenderHistoryItem{
+			ID:         record.ID,
+			CreatedAt:  record.CreatedAt.Format(time.RFC3339),
+			Mode:       record.Mode,
+			Width:      record.OutputWidth,
+			Height:     record.OutputHeight,
+			PreviewURL: s.artifactURL(record.ID, record.Artifacts.PreviewPNG, token),
+			ReviewURL:  s.reviewURL(record.ID, token),
+			RecordURL:  s.recordURL(record.ID, token),
+			FinalURL:   s.artifactURL(record.ID, record.Artifacts.FinalPNG, token),
+		}
+		if record.Artifacts.DebugPNG != "" {
+			item.DebugURL = s.artifactURL(record.ID, record.Artifacts.DebugPNG, token)
+		}
+		out = append(out, item)
+	}
+
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) handleGetRecord(w http.ResponseWriter, r *http.Request) {

@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -121,6 +122,57 @@ func (s *TempStore) OpenArtifact(ctx context.Context, id string, name string) (i
 	}
 
 	return file, nil
+}
+
+func (s *TempStore) List(ctx context.Context, limit int) ([]ReviewRecord, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	entries, err := os.ReadDir(s.RootDir)
+	if err != nil {
+		return nil, err
+	}
+
+	records := make([]ReviewRecord, 0, len(entries))
+	for _, entry := range entries {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), "tmp-") {
+			continue
+		}
+		record, err := s.Get(ctx, entry.Name())
+		if errors.Is(err, core.ErrReviewNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, record)
+	}
+
+	slices.SortFunc(records, func(a, b ReviewRecord) int {
+		if a.CreatedAt.After(b.CreatedAt) {
+			return -1
+		}
+		if a.CreatedAt.Before(b.CreatedAt) {
+			return 1
+		}
+		if a.ID > b.ID {
+			return -1
+		}
+		if a.ID < b.ID {
+			return 1
+		}
+		return 0
+	})
+
+	if limit > 0 && len(records) > limit {
+		records = records[:limit]
+	}
+
+	return records, nil
 }
 
 func (s *TempStore) Delete(ctx context.Context, id string) error {

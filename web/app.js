@@ -21,6 +21,8 @@ const renderButton = document.querySelector("#render");
 const statusNode = document.querySelector("#status");
 const previewImage = document.querySelector("#preview");
 const linksNode = document.querySelector("#links");
+const refreshHistoryButton = document.querySelector("#refresh-history");
+const historyListNode = document.querySelector("#history-list");
 const tokenStorageKey = "pixgbc.token";
 
 function activeToken() {
@@ -65,6 +67,38 @@ async function loadPalettes() {
     option.textContent = `${palette.display_name} (${palette.colors.join(" ")})`;
     paletteSelect.append(option);
   }
+}
+
+async function loadHistory() {
+  const response = await fetch(withToken("/api/renders?limit=20"));
+  if (!response.ok) {
+    historyListNode.innerHTML = `<p class="status">${await response.text()}</p>`;
+    return;
+  }
+
+  const items = await response.json();
+  if (items.length === 0) {
+    historyListNode.innerHTML = "<p class=\"status\">no renders yet</p>";
+    return;
+  }
+
+  historyListNode.innerHTML = items.map((item) => `
+    <article class="history-item">
+      <a href="${item.review_url}" target="_blank" rel="noreferrer"><img src="${item.preview_url}" alt="Preview for ${item.id}"></a>
+      <div>
+        <p><strong>${item.mode}</strong> · ${item.width}x${item.height}</p>
+        <p>${new Date(item.created_at).toLocaleString()}</p>
+        <p class="links">
+          <a href="${item.review_url}" target="_blank" rel="noreferrer">review</a>
+          <span> · </span>
+          <a href="${item.final_url}" target="_blank" rel="noreferrer">final</a>
+          <span> · </span>
+          <a href="${item.record_url}" target="_blank" rel="noreferrer">record</a>
+          ${item.debug_url ? `<span> · </span><a href="${item.debug_url}" target="_blank" rel="noreferrer">debug</a>` : ""}
+        </p>
+      </div>
+    </article>
+  `).join("");
 }
 
 async function renderImage() {
@@ -122,6 +156,7 @@ async function renderImage() {
   `;
   statusNode.textContent = "render complete";
   renderButton.disabled = false;
+  void loadHistory();
 }
 
 function syncControls() {
@@ -137,10 +172,15 @@ function syncControls() {
 tokenInput.addEventListener("change", () => {
   persistToken();
   void loadPalettes();
+  void loadHistory();
 });
 
 renderButton.addEventListener("click", () => {
   void renderImage();
+});
+
+refreshHistoryButton.addEventListener("click", () => {
+  void loadHistory();
 });
 
 paletteModeSelect.addEventListener("change", syncControls);
@@ -148,4 +188,5 @@ modeSelect.addEventListener("change", syncControls);
 
 restoreToken();
 void loadPalettes();
+void loadHistory();
 syncControls();

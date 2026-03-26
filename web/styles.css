@@ -137,6 +137,53 @@ button {
   background: #fff;
 }
 
+.history {
+  margin-top: 24px;
+  padding: 20px;
+}
+
+.history-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.history-head h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.history-head button {
+  width: auto;
+}
+
+.history-list {
+  display: grid;
+  gap: 14px;
+}
+
+.history-item {
+  display: grid;
+  gap: 14px;
+  border: 1px solid rgba(40, 51, 31, 0.18);
+  background: rgba(255, 253, 248, 0.9);
+  padding: 12px;
+}
+
+.history-item img {
+  width: 100%;
+  max-width: 220px;
+  image-rendering: pixelated;
+  border: 2px solid var(--edge);
+  background: #fff;
+}
+
+.history-item p {
+  margin: 0 0 8px;
+}
+
 @media (min-width: 780px) {
   .controls {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -148,5 +195,10 @@ button {
 
   .controls button {
     grid-column: span 1;
+  }
+
+  .history-item {
+    grid-template-columns: 220px minmax(0, 1fr);
+    align-items: center;
   }
 }
