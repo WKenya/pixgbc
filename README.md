@@ -16,6 +16,7 @@ Current implementation slice:
 - embedded local web UI with persisted review URLs/artifacts and basic render controls
 - deterministic sample generator + checked-in example inputs/outputs
 - benchmark coverage for render/palette hot paths
+- CLI integration coverage for help/convert/inspect/palette/review flows
 
 Not done yet:
 
