@@ -15,6 +15,7 @@ Current implementation slice:
 - review bundle emission to temp/user-selected disk
 - embedded local web UI with persisted review URLs/artifacts and basic render controls
 - deterministic sample generator + checked-in example inputs/outputs
+- benchmark coverage for render/palette hot paths
 
 Not done yet:
 
@@ -65,4 +66,5 @@ make test
 make build
 make samples
 make sample-outputs
+make bench
 ```

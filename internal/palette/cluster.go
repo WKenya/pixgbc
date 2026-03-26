@@ -1,7 +1,6 @@
 package palette
 
 import (
-	"fmt"
 	"image/color"
 	"slices"
 	"strings"
@@ -10,6 +9,7 @@ import (
 type bankCluster struct {
 	counts map[uint16]int
 	colors []color.NRGBA
+	key    string
 }
 
 func ClusterTilePalettes(tilePalettes [][]color.NRGBA, maxBanks int, colorsPerTile int) [][]color.NRGBA {
@@ -26,6 +26,7 @@ func ClusterTilePalettes(tilePalettes [][]color.NRGBA, maxBanks int, colorsPerTi
 			cluster = &bankCluster{
 				counts: paletteCounts(normalized),
 				colors: normalized,
+				key:    key,
 			}
 			unique[key] = cluster
 			continue
@@ -34,6 +35,7 @@ func ClusterTilePalettes(tilePalettes [][]color.NRGBA, maxBanks int, colorsPerTi
 			cluster.counts[bucket] += count
 		}
 		cluster.colors = representativeColors(cluster.counts, colorsPerTile)
+		cluster.key = paletteKey(cluster.colors)
 	}
 
 	banks := make([]*bankCluster, 0, len(unique))
@@ -119,9 +121,11 @@ func mergeClusters(a, b *bankCluster, colorsPerTile int) *bankCluster {
 	for bucket, count := range b.counts {
 		counts[bucket] += count
 	}
+	colors := representativeColors(counts, colorsPerTile)
 	return &bankCluster{
 		counts: counts,
-		colors: representativeColors(counts, colorsPerTile),
+		colors: colors,
+		key:    paletteKey(colors),
 	}
 }
 
@@ -186,23 +190,27 @@ func normalizePaletteColors(colors []color.NRGBA, colorsPerTile int) []color.NRG
 func paletteKey(colors []color.NRGBA) string {
 	parts := make([]string, 0, len(colors))
 	for _, c := range colors {
-		parts = append(parts, strings.ToLower(colorKey(c)))
+		parts = append(parts, colorKey(c))
 	}
 	return strings.Join(parts, ",")
 }
 
 func colorKey(c color.NRGBA) string {
-	return fmt.Sprintf("%02x%02x%02x", c.R, c.G, c.B)
+	const hex = "0123456789abcdef"
+	buf := [6]byte{
+		hex[c.R>>4], hex[c.R&0x0F],
+		hex[c.G>>4], hex[c.G&0x0F],
+		hex[c.B>>4], hex[c.B&0x0F],
+	}
+	return string(buf[:])
 }
 
 func sortClusters(clusters []*bankCluster) {
 	slices.SortFunc(clusters, func(a, b *bankCluster) int {
-		keyA := paletteKey(a.colors)
-		keyB := paletteKey(b.colors)
-		if keyA < keyB {
+		if a.key < b.key {
 			return -1
 		}
-		if keyA > keyB {
+		if a.key > b.key {
 			return 1
 		}
 		return 0
@@ -212,15 +220,12 @@ func sortClusters(clusters []*bankCluster) {
 func nearestClusterPair(clusters []*bankCluster) (int, int) {
 	bestLeft, bestRight := 0, 1
 	bestDistance := PaletteDistance(clusters[0].colors, clusters[1].colors)
-	bestKey := paletteKey(clusters[0].colors) + "|" + paletteKey(clusters[1].colors)
 
 	for i := 0; i < len(clusters); i++ {
 		for j := i + 1; j < len(clusters); j++ {
 			distance := PaletteDistance(clusters[i].colors, clusters[j].colors)
-			key := paletteKey(clusters[i].colors) + "|" + paletteKey(clusters[j].colors)
-			if distance < bestDistance || (distance == bestDistance && key < bestKey) {
+			if distance < bestDistance || (distance == bestDistance && pairKeyLess(clusters[i], clusters[j], clusters[bestLeft], clusters[bestRight])) {
 				bestDistance = distance
-				bestKey = key
 				bestLeft = i
 				bestRight = j
 			}
@@ -228,4 +233,14 @@ func nearestClusterPair(clusters []*bankCluster) (int, int) {
 	}
 
 	return bestLeft, bestRight
+}
+
+func pairKeyLess(leftA, rightA, leftB, rightB *bankCluster) bool {
+	if leftA.key < leftB.key {
+		return true
+	}
+	if leftA.key > leftB.key {
+		return false
+	}
+	return rightA.key < rightB.key
 }
