@@ -56,6 +56,8 @@ If `serve` binds beyond localhost, `--token` is required. The token works via `?
 - `GET /api/renders/{id}/artifacts/{name}`
 - `GET /renders/{id}`
 
+The review page now renders palettes, config, hashes, and strict-mode tile-bank distribution directly in HTML in addition to raw JSON.
+
 ## Build
 
 ```sh
