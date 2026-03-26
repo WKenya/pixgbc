@@ -17,10 +17,7 @@ Current implementation slice:
 - deterministic sample generator + checked-in example inputs/outputs
 - benchmark coverage for render/palette hot paths
 - CLI integration coverage for help/convert/inspect/palette/review flows
-
-Not done yet:
-
-- binary/image fixture files for visual review
+- tracked docs/example assets under `docs/assets/`
 
 ## Commands
 
@@ -35,6 +32,7 @@ go run ./cmd/pixgbc convert samples/portrait-alpha.png -o out.png --alpha flatte
 go run ./cmd/pixgbc serve --listen 127.0.0.1:8080 --artifact-ttl 24h --max-upload-bytes 10MB
 make samples
 make sample-outputs
+make docs-assets
 ```
 
 `convert --emit-review` writes `final.png`, `preview.png`, and `meta.json` into a review bundle directory and prints the bundle path.
@@ -62,6 +60,34 @@ If `serve` binds beyond localhost, `--token` is required. The token works via `?
 
 The review page now renders palettes, config, hashes, and strict-mode tile-bank distribution directly in HTML in addition to raw JSON.
 
+## Examples
+
+Relaxed preset render:
+
+```sh
+go run ./cmd/pixgbc convert samples/gradient-landscape.png -o /tmp/gradient.png --preview-out /tmp/gradient-preview.png --palette gbc-olive
+```
+
+![Relaxed render](docs/assets/gradient-relaxed.png)
+
+Alpha flattening with explicit background:
+
+```sh
+go run ./cmd/pixgbc convert samples/portrait-alpha.png -o /tmp/portrait.png --preview-out /tmp/portrait-preview.png --alpha flatten --bg '#f4f1e8'
+```
+
+![Alpha flatten render](docs/assets/portrait-alpha-relaxed.png)
+
+Strict `cgb-bg` render with debug sheet:
+
+```sh
+go run ./cmd/pixgbc convert samples/tile-banks.png -o /tmp/tile-banks.png --preview-out /tmp/tile-banks-preview.png --mode cgb-bg --debug --emit-review temp
+```
+
+![Strict render](docs/assets/tile-banks-cgb.png)
+
+![Strict debug sheet](docs/assets/tile-banks-debug.png)
+
 ## Build
 
 ```sh
@@ -69,5 +95,6 @@ make test
 make build
 make samples
 make sample-outputs
+make docs-assets
 make bench
 ```
