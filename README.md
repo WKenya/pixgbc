@@ -28,7 +28,7 @@ go run ./cmd/pixgbc inspect --input path/to/input.png --json
 go run ./cmd/pixgbc convert --input path/to/input.png --output out.png
 go run ./cmd/pixgbc convert --input path/to/input.png --output out.png --emit-review temp
 go run ./cmd/pixgbc convert --input path/to/input.png --output out.png --mode cgb-bg --debug --emit-review temp
-go run ./cmd/pixgbc serve --addr 127.0.0.1:8080
+go run ./cmd/pixgbc serve --listen 127.0.0.1:8080 --artifact-ttl 24h --max-upload-bytes 10MB
 ```
 
 `convert --emit-review` writes `final.png`, `preview.png`, and `meta.json` into a review bundle directory and prints the bundle path.
@@ -38,6 +38,8 @@ go run ./cmd/pixgbc serve --addr 127.0.0.1:8080
 `inspect --json` now reports dominant colors, estimated strict-mode fit, and recommended mode/palette preset.
 
 `serve` exposes browser controls for mode, preset vs extract, width/height, crop, dither, alpha mode, background color, preview scale, strict-mode tile params, and debug output.
+
+If `serve` binds beyond localhost, `--token` is required. The token works via `?token=...` or `Authorization: Bearer ...`.
 
 `serve` persists browser renders into a temp review store and exposes:
 

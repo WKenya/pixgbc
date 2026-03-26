@@ -23,7 +23,7 @@ func TestRenderAndFetchReview(t *testing.T) {
 		t.Fatalf("NewTempStore() error = %v", err)
 	}
 
-	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store)
+	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store, ServerConfig{})
 
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -40,8 +40,9 @@ func TestRenderAndFetchReview(t *testing.T) {
 	if err := writer.Close(); err != nil {
 		t.Fatalf("writer.Close() error = %v", err)
 	}
+	bodyBytes := append([]byte(nil), body.Bytes()...)
 
-	request := httptest.NewRequest(http.MethodPost, "/api/render", &body)
+	request := httptest.NewRequest(http.MethodPost, "/api/render", bytes.NewReader(bodyBytes))
 	request.Header.Set("Content-Type", writer.FormDataContentType())
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
@@ -95,7 +96,7 @@ func TestRenderCGBBGIncludesDebugArtifact(t *testing.T) {
 		t.Fatalf("NewTempStore() error = %v", err)
 	}
 
-	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store)
+	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store, ServerConfig{})
 
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -118,8 +119,9 @@ func TestRenderCGBBGIncludesDebugArtifact(t *testing.T) {
 	if err := writer.Close(); err != nil {
 		t.Fatalf("writer.Close() error = %v", err)
 	}
+	bodyBytes := append([]byte(nil), body.Bytes()...)
 
-	request := httptest.NewRequest(http.MethodPost, "/api/render", &body)
+	request := httptest.NewRequest(http.MethodPost, "/api/render", bytes.NewReader(bodyBytes))
 	request.Header.Set("Content-Type", writer.FormDataContentType())
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
@@ -151,7 +153,7 @@ func TestRenderPersistsFormConfig(t *testing.T) {
 		t.Fatalf("NewTempStore() error = %v", err)
 	}
 
-	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store)
+	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store, ServerConfig{})
 
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -186,8 +188,9 @@ func TestRenderPersistsFormConfig(t *testing.T) {
 	if err := writer.Close(); err != nil {
 		t.Fatalf("writer.Close() error = %v", err)
 	}
+	bodyBytes := append([]byte(nil), body.Bytes()...)
 
-	request := httptest.NewRequest(http.MethodPost, "/api/render", &body)
+	request := httptest.NewRequest(http.MethodPost, "/api/render", bytes.NewReader(bodyBytes))
 	request.Header.Set("Content-Type", writer.FormDataContentType())
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
@@ -254,7 +257,7 @@ func TestRenderRejectsInvalidBGColor(t *testing.T) {
 		t.Fatalf("NewTempStore() error = %v", err)
 	}
 
-	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store)
+	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store, ServerConfig{})
 
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -271,6 +274,83 @@ func TestRenderRejectsInvalidBGColor(t *testing.T) {
 	if err := writer.Close(); err != nil {
 		t.Fatalf("writer.Close() error = %v", err)
 	}
+	bodyBytes := append([]byte(nil), body.Bytes()...)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/render", bytes.NewReader(bodyBytes))
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("POST /api/render status = %d, want 400", recorder.Code)
+	}
+}
+
+func TestRenderRequiresTokenWhenConfigured(t *testing.T) {
+	store, err := review.NewTempStore(t.TempDir(), time.Hour)
+	if err != nil {
+		t.Fatalf("NewTempStore() error = %v", err)
+	}
+
+	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store, ServerConfig{
+		Token: "secret-token",
+	})
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "auth.png")
+	if err != nil {
+		t.Fatalf("CreateFormFile() error = %v", err)
+	}
+	if _, err := part.Write(makePNG(t)); err != nil {
+		t.Fatalf("part.Write() error = %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("writer.Close() error = %v", err)
+	}
+	bodyBytes := append([]byte(nil), body.Bytes()...)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/render", &body)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("POST /api/render status = %d, want 401", recorder.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/api/render?token=secret-token", bytes.NewReader(bodyBytes))
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	recorder = httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("POST /api/render with token status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestRenderRejectsOversizeBodyByConfiguredLimit(t *testing.T) {
+	store, err := review.NewTempStore(t.TempDir(), time.Hour)
+	if err != nil {
+		t.Fatalf("NewTempStore() error = %v", err)
+	}
+
+	limits := ioimg.DefaultLimits()
+	limits.MaxFileBytes = 32
+	handler := NewServerWithStore(render.NewEngine(), limits, store, ServerConfig{})
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "too-big.png")
+	if err != nil {
+		t.Fatalf("CreateFormFile() error = %v", err)
+	}
+	if _, err := part.Write(makeWidePNG(t)); err != nil {
+		t.Fatalf("part.Write() error = %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("writer.Close() error = %v", err)
+	}
 
 	request := httptest.NewRequest(http.MethodPost, "/api/render", &body)
 	request.Header.Set("Content-Type", writer.FormDataContentType())
@@ -278,7 +358,7 @@ func TestRenderRejectsInvalidBGColor(t *testing.T) {
 	handler.ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusBadRequest {
-		t.Fatalf("POST /api/render status = %d, want 400", recorder.Code)
+		t.Fatalf("POST /api/render status = %d, want 400, body = %s", recorder.Code, recorder.Body.String())
 	}
 }
 

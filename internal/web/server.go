@@ -25,18 +25,27 @@ type Server struct {
 	engine core.Engine
 	limits ioimg.Limits
 	store  review.Store
+	cfg    ServerConfig
+}
+
+type ServerConfig struct {
+	Token string
 }
 
 func NewServer(engine core.Engine, limits ioimg.Limits) (http.Handler, error) {
-	store, err := review.NewTempStore("", 7*24*time.Hour)
+	return NewServerWithConfig(engine, limits, ServerConfig{}, 7*24*time.Hour)
+}
+
+func NewServerWithConfig(engine core.Engine, limits ioimg.Limits, cfg ServerConfig, ttl time.Duration) (http.Handler, error) {
+	store, err := review.NewTempStore("", ttl)
 	if err != nil {
 		return nil, err
 	}
-	return NewServerWithStore(engine, limits, store), nil
+	return NewServerWithStore(engine, limits, store, cfg), nil
 }
 
-func NewServerWithStore(engine core.Engine, limits ioimg.Limits, store review.Store) http.Handler {
-	server := &Server{engine: engine, limits: limits, store: store}
+func NewServerWithStore(engine core.Engine, limits ioimg.Limits, store review.Store, cfg ServerConfig) http.Handler {
+	server := &Server{engine: engine, limits: limits, store: store, cfg: cfg}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", server.handleHealth)
 	mux.HandleFunc("GET /api/palettes", server.handlePalettes)
@@ -79,6 +88,10 @@ func (s *Server) handlePalettes(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(r) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, s.limits.MaxFileBytes)
 	if err := r.ParseMultipartForm(s.limits.MaxFileBytes); err != nil {
 		http.Error(w, fmt.Sprintf("parse upload: %v", err), http.StatusBadRequest)
@@ -136,6 +149,10 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetRecord(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(r) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 	record, err := s.store.Get(r.Context(), r.PathValue("id"))
 	if err != nil {
 		status := http.StatusInternalServerError
@@ -150,6 +167,10 @@ func (s *Server) handleGetRecord(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetArtifact(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(r) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 	reader, err := s.store.OpenArtifact(r.Context(), r.PathValue("id"), r.PathValue("name"))
 	if err != nil {
 		status := http.StatusInternalServerError
@@ -166,6 +187,10 @@ func (s *Server) handleGetArtifact(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleReviewPage(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(r) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 	record, err := s.store.Get(r.Context(), r.PathValue("id"))
 	if err != nil {
 		status := http.StatusInternalServerError
@@ -219,6 +244,20 @@ func (s *Server) artifactURL(id, name string) string {
 
 func (s *Server) reviewURL(id string) string {
 	return "/renders/" + id
+}
+
+func (s *Server) authorized(r *http.Request) bool {
+	if s.cfg.Token == "" {
+		return true
+	}
+	if r.URL.Query().Get("token") == s.cfg.Token {
+		return true
+	}
+	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+	if strings.HasPrefix(authHeader, "Bearer ") && strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer ")) == s.cfg.Token {
+		return true
+	}
+	return false
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {
