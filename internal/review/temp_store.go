@@ -44,7 +44,7 @@ func (s *TempStore) Save(ctx context.Context, record ReviewRecord, files map[str
 		return fmt.Errorf("%w: review id required", core.ErrInvalidConfig)
 	}
 
-	record.Artifacts = fillArtifactDefaults(record.Artifacts)
+	record = normalizeReviewRecord(record)
 	finalDir := filepath.Join(s.RootDir, record.ID)
 	if _, err := os.Stat(finalDir); err == nil {
 		return fmt.Errorf("review %q already exists", record.ID)
@@ -99,8 +99,7 @@ func (s *TempStore) Get(ctx context.Context, id string) (ReviewRecord, error) {
 		return ReviewRecord{}, err
 	}
 
-	record.Artifacts = fillArtifactDefaults(record.Artifacts)
-	return record, nil
+	return normalizeReviewRecord(record), nil
 }
 
 func (s *TempStore) OpenArtifact(ctx context.Context, id string, name string) (io.ReadSeekCloser, error) {

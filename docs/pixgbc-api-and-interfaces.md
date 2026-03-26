@@ -289,6 +289,7 @@ type Fingerprints struct {
 }
 
 type ReviewRecord struct {
+    SchemaVersion   string                 `json:"schema_version"`
     ID              string                 `json:"id"`
     CreatedAt       time.Time              `json:"created_at"`
     Mode            string                 `json:"mode"`
@@ -304,6 +305,8 @@ type ReviewRecord struct {
     Metadata        map[string]any         `json:"metadata,omitempty"`
 }
 ```
+
+`schema_version` should be materialized explicitly in stored review JSON. Current stable value: `pixgbc.review/v1`.
 
 ## Review store interface
 

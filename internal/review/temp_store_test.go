@@ -18,10 +18,11 @@ func TestTempStoreSaveGetAndOpenArtifact(t *testing.T) {
 	}
 
 	record := ReviewRecord{
-		ID:        "abc123",
-		CreatedAt: time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC),
-		Mode:      "relaxed",
-		Config:    core.DefaultConfig(),
+		SchemaVersion: CurrentSchemaVersion,
+		ID:            "abc123",
+		CreatedAt:     time.Date(2026, 3, 25, 12, 0, 0, 0, time.UTC),
+		Mode:          "relaxed",
+		Config:        core.DefaultConfig(),
 		Source: core.SourceMeta{
 			Width:      10,
 			Height:     10,
@@ -58,6 +59,9 @@ func TestTempStoreSaveGetAndOpenArtifact(t *testing.T) {
 	}
 	if got.ID != record.ID {
 		t.Fatalf("Get().ID = %q, want %q", got.ID, record.ID)
+	}
+	if got.SchemaVersion != CurrentSchemaVersion {
+		t.Fatalf("Get().SchemaVersion = %q, want %q", got.SchemaVersion, CurrentSchemaVersion)
 	}
 	if got.Fingerprints.OutputSHA256 != "out" {
 		t.Fatalf("Get().Fingerprints.OutputSHA256 = %q, want out", got.Fingerprints.OutputSHA256)

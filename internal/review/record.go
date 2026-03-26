@@ -15,16 +15,17 @@ func NewRecord(id string, createdAt time.Time, cfg core.Config, result *core.Res
 	}
 
 	record := ReviewRecord{
-		ID:           id,
-		CreatedAt:    createdAt.UTC(),
-		Mode:         string(normalized.Mode),
-		Config:       normalized,
-		Source:       result.SourceMeta,
-		OutputWidth:  result.FinalImage.Bounds().Dx(),
-		OutputHeight: result.FinalImage.Bounds().Dy(),
-		Artifacts:    fillArtifactDefaults(artifacts),
-		Fingerprints: fingerprints,
-		Metadata:     cloneMetadata(result.Metadata),
+		SchemaVersion: CurrentSchemaVersion,
+		ID:            id,
+		CreatedAt:     createdAt.UTC(),
+		Mode:          string(normalized.Mode),
+		Config:        normalized,
+		Source:        result.SourceMeta,
+		OutputWidth:   result.FinalImage.Bounds().Dx(),
+		OutputHeight:  result.FinalImage.Bounds().Dy(),
+		Artifacts:     fillArtifactDefaults(artifacts),
+		Fingerprints:  fingerprints,
+		Metadata:      cloneMetadata(result.Metadata),
 	}
 
 	if len(result.GlobalPalette) > 0 {
@@ -54,6 +55,14 @@ func fillArtifactDefaults(artifacts ArtifactManifest) ArtifactManifest {
 		artifacts.MetaJSON = DefaultMetaJSONName
 	}
 	return artifacts
+}
+
+func normalizeReviewRecord(record ReviewRecord) ReviewRecord {
+	if record.SchemaVersion == "" {
+		record.SchemaVersion = CurrentSchemaVersion
+	}
+	record.Artifacts = fillArtifactDefaults(record.Artifacts)
+	return record
 }
 
 func colorsToHex(colors []color.NRGBA) []string {

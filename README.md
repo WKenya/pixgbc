@@ -60,6 +60,8 @@ If `serve` binds beyond localhost, `--token` is required. The token works via `?
 
 The review page now renders palettes, config, hashes, and strict-mode tile-bank distribution directly in HTML in addition to raw JSON.
 
+Review bundles now carry an explicit stable schema marker: `schema_version: "pixgbc.review/v1"`.
+
 ## Examples
 
 Relaxed preset render:

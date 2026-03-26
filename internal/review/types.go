@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	CurrentSchemaVersion  = "pixgbc.review/v1"
 	DefaultFinalPNGName   = "final.png"
 	DefaultPreviewPNGName = "preview.png"
 	DefaultDebugPNGName   = "debug.png"
@@ -29,6 +30,7 @@ type Fingerprints struct {
 }
 
 type ReviewRecord struct {
+	SchemaVersion   string                `json:"schema_version"`
 	ID              string                `json:"id"`
 	CreatedAt       time.Time             `json:"created_at"`
 	Mode            string                `json:"mode"`
