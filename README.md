@@ -62,6 +62,11 @@ The review page now renders palettes, config, hashes, and strict-mode tile-bank 
 
 Review bundles now carry an explicit stable schema marker: `schema_version: "pixgbc.review/v1"`.
 
+Release/ops docs:
+
+- [docs/RELEASING.md](/Users/wesleykenyon/code/pixgbc/docs/RELEASING.md)
+- [docs/LAN-VERIFICATION.md](/Users/wesleykenyon/code/pixgbc/docs/LAN-VERIFICATION.md)
+
 ## Examples
 
 Relaxed preset render:
