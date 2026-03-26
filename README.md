@@ -14,6 +14,7 @@ Current implementation slice:
 - deterministic render golden-hash tests
 - review bundle emission to temp/user-selected disk
 - embedded local web UI with persisted review URLs/artifacts and basic render controls
+- deterministic sample generator + checked-in example inputs/outputs
 
 Not done yet:
 
@@ -28,12 +29,19 @@ go run ./cmd/pixgbc inspect --input path/to/input.png --json
 go run ./cmd/pixgbc convert --input path/to/input.png --output out.png
 go run ./cmd/pixgbc convert --input path/to/input.png --output out.png --emit-review temp
 go run ./cmd/pixgbc convert --input path/to/input.png --output out.png --mode cgb-bg --debug --emit-review temp
+go run ./cmd/pixgbc convert samples/portrait-alpha.png -o out.png --alpha flatten --bg '#f4f1e8'
 go run ./cmd/pixgbc serve --listen 127.0.0.1:8080 --artifact-ttl 24h --max-upload-bytes 10MB
+make samples
+make sample-outputs
 ```
 
 `convert --emit-review` writes `final.png`, `preview.png`, and `meta.json` into a review bundle directory and prints the bundle path.
 
 `convert --mode cgb-bg` runs the stricter tile/palette-bank solver. Add `--debug` to persist a composed debug sheet into the review bundle.
+
+`convert` also accepts `-o`, positional input, `--scale`, `--alpha`, `--bg`, `--tile-size`, `--colors-per-tile`, and `--max-palettes`.
+
+Checked-in sample inputs live in [samples/README.md](/Users/wesleykenyon/code/pixgbc/samples/README.md). `make sample-outputs` rebuilds the example PNG outputs and a strict-mode review bundle under `samples/`.
 
 `inspect --json` now reports dominant colors, estimated strict-mode fit, and recommended mode/palette preset.
 
@@ -53,4 +61,6 @@ If `serve` binds beyond localhost, `--token` is required. The token works via `?
 ```sh
 make test
 make build
+make samples
+make sample-outputs
 ```

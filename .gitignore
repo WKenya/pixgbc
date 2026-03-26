@@ -21,6 +21,8 @@ profile.cov
 # vendor/
 
 bin/
+samples/outputs/
+samples/reviews/
 
 # Go workspace file
 go.work

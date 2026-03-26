@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -14,52 +15,12 @@ import (
 )
 
 func (a *App) runConvert(ctx context.Context, args []string) int {
-	fs := flag.NewFlagSet("convert", flag.ContinueOnError)
-	fs.SetOutput(a.stderr)
-
-	var (
-		inputPath    string
-		outputPath   string
-		size         string
-		mode         string
-		paletteKey   string
-		dither       string
-		crop         string
-		previewOut   string
-		emitReview   string
-		paletteMode  string
-		previewScale int
-		emitDebug    bool
-	)
-
-	fs.StringVar(&inputPath, "input", "", "input image path")
-	fs.StringVar(&outputPath, "output", "", "output PNG path")
-	fs.StringVar(&size, "size", "160x144", "target size")
-	fs.StringVar(&mode, "mode", "relaxed", "render mode")
-	fs.StringVar(&paletteKey, "palette", "gbc-olive", "palette preset")
-	fs.StringVar(&paletteMode, "palette-mode", "preset", "palette mode: preset|extract")
-	fs.StringVar(&dither, "dither", "ordered", "dither mode")
-	fs.StringVar(&crop, "crop", "fill", "crop mode")
-	fs.StringVar(&previewOut, "preview-out", "", "optional preview PNG path")
-	fs.StringVar(&emitReview, "emit-review", "", "review root dir, or temp")
-	fs.IntVar(&previewScale, "preview-scale", 6, "preview upscale factor")
-	fs.BoolVar(&emitDebug, "debug", false, "emit debug artifacts when supported")
-
-	if err := fs.Parse(args); err != nil {
-		return 2
-	}
-	if inputPath == "" || outputPath == "" {
-		_, _ = fmt.Fprintln(a.stderr, "--input and --output required")
-		return 2
-	}
-
-	width, height, err := parseSize(size)
+	opts, err := parseConvertOptions(args, a.stderr)
 	if err != nil {
-		_, _ = fmt.Fprintln(a.stderr, err)
 		return 2
 	}
 
-	inputBytes, err := os.ReadFile(inputPath)
+	inputBytes, err := os.ReadFile(opts.InputPath)
 	if err != nil {
 		_, _ = fmt.Fprintf(a.stderr, "read input: %v\n", err)
 		return 1
@@ -71,38 +32,26 @@ func (a *App) runConvert(ctx context.Context, args []string) int {
 		return 1
 	}
 
-	cfg := core.Config{
-		Mode:            core.Mode(mode),
-		TargetWidth:     width,
-		TargetHeight:    height,
-		PaletteStrategy: core.PaletteStrategy(paletteMode),
-		PalettePreset:   paletteKey,
-		Dither:          core.DitherMode(dither),
-		CropMode:        core.CropMode(crop),
-		PreviewScale:    previewScale,
-		EmitDebug:       emitDebug,
-	}
-
-	result, err := a.engine().Run(ctx, source.NewSingleImage(decoded.Image, decoded.Meta), cfg)
+	result, err := a.engine().Run(ctx, source.NewSingleImage(decoded.Image, decoded.Meta), opts.Config)
 	if err != nil {
 		_, _ = fmt.Fprintf(a.stderr, "render: %v\n", err)
 		return 1
 	}
 
-	if err := writePNG(outputPath, result.FinalImage); err != nil {
+	if err := writePNG(opts.OutputPath, result.FinalImage); err != nil {
 		_, _ = fmt.Fprintf(a.stderr, "write output: %v\n", err)
 		return 1
 	}
 
-	if previewOut != "" {
-		if err := writePNG(previewOut, result.PreviewImage); err != nil {
+	if opts.PreviewOut != "" {
+		if err := writePNG(opts.PreviewOut, result.PreviewImage); err != nil {
 			_, _ = fmt.Fprintf(a.stderr, "write preview: %v\n", err)
 			return 1
 		}
 	}
 
-	if emitReview != "" {
-		rootDir, reviewDir, err := emitReviewBundle(ctx, emitReview, inputBytes, cfg, result)
+	if opts.EmitReview != "" {
+		rootDir, reviewDir, err := emitReviewBundle(ctx, opts.EmitReview, inputBytes, opts.Config, result)
 		if err != nil {
 			_, _ = fmt.Fprintf(a.stderr, "emit review: %v\n", err)
 			return 1
@@ -111,6 +60,115 @@ func (a *App) runConvert(ctx context.Context, args []string) int {
 	}
 
 	return 0
+}
+
+type convertOptions struct {
+	InputPath  string
+	OutputPath string
+	PreviewOut string
+	EmitReview string
+	Config     core.Config
+}
+
+func parseConvertOptions(args []string, stderr io.Writer) (convertOptions, error) {
+	fs := flag.NewFlagSet("convert", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+
+	defaults := core.DefaultConfig()
+	var (
+		opts          convertOptions
+		size          string
+		mode          string
+		paletteKey    string
+		paletteMode   string
+		dither        string
+		crop          string
+		alphaMode     string
+		bg            string
+		previewScale  int
+		scaleAlias    int
+		tileSize      int
+		colorsPerTile int
+		maxPalettes   int
+		emitDebug     bool
+	)
+
+	fs.StringVar(&opts.InputPath, "input", "", "input image path")
+	fs.StringVar(&opts.OutputPath, "output", "", "output PNG path")
+	fs.StringVar(&opts.OutputPath, "o", "", "output PNG path")
+	fs.StringVar(&size, "size", fmt.Sprintf("%dx%d", defaults.TargetWidth, defaults.TargetHeight), "target size")
+	fs.StringVar(&mode, "mode", string(defaults.Mode), "render mode")
+	fs.StringVar(&paletteKey, "palette", defaults.PalettePreset, "palette preset")
+	fs.StringVar(&paletteMode, "palette-mode", string(defaults.PaletteStrategy), "palette mode: preset|extract")
+	fs.StringVar(&dither, "dither", string(defaults.Dither), "dither mode")
+	fs.StringVar(&crop, "crop", string(defaults.CropMode), "crop mode")
+	fs.StringVar(&opts.PreviewOut, "preview-out", "", "optional preview PNG path")
+	fs.StringVar(&opts.EmitReview, "emit-review", "", "review root dir, or temp")
+	fs.IntVar(&previewScale, "preview-scale", defaults.PreviewScale, "preview upscale factor")
+	fs.IntVar(&scaleAlias, "scale", defaults.PreviewScale, "preview upscale factor")
+	fs.StringVar(&alphaMode, "alpha-mode", string(defaults.AlphaMode), "alpha mode")
+	fs.StringVar(&alphaMode, "alpha", string(defaults.AlphaMode), "alpha mode")
+	fs.StringVar(&bg, "bg", "", "background color in #RRGGBB")
+	fs.IntVar(&tileSize, "tile-size", defaults.TileSize, "tile size for strict mode")
+	fs.IntVar(&colorsPerTile, "colors-per-tile", defaults.ColorsPerTile, "color budget per tile")
+	fs.IntVar(&maxPalettes, "max-palettes", defaults.MaxPalettes, "max shared palettes for strict mode")
+	fs.BoolVar(&emitDebug, "debug", false, "emit debug artifacts when supported")
+
+	parseArgs := args
+	if len(parseArgs) > 0 && !strings.HasPrefix(parseArgs[0], "-") {
+		opts.InputPath = parseArgs[0]
+		parseArgs = parseArgs[1:]
+	}
+
+	if err := fs.Parse(parseArgs); err != nil {
+		return convertOptions{}, err
+	}
+
+	if opts.InputPath == "" && fs.NArg() > 0 {
+		opts.InputPath = fs.Arg(0)
+	}
+	if opts.InputPath == "" || opts.OutputPath == "" {
+		_, _ = fmt.Fprintln(stderr, "--input and --output required")
+		return convertOptions{}, flag.ErrHelp
+	}
+
+	width, height, err := parseSize(size)
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, err)
+		return convertOptions{}, err
+	}
+
+	backgroundColor := defaults.BackgroundColor
+	if strings.TrimSpace(bg) != "" {
+		backgroundColor, err = core.ParseHexColor(bg)
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, "invalid --bg: %v\n", err)
+			return convertOptions{}, err
+		}
+	}
+
+	if scaleAlias != defaults.PreviewScale {
+		previewScale = scaleAlias
+	}
+
+	opts.Config = core.Config{
+		Mode:            core.Mode(mode),
+		TargetWidth:     width,
+		TargetHeight:    height,
+		TileSize:        tileSize,
+		MaxPalettes:     maxPalettes,
+		ColorsPerTile:   colorsPerTile,
+		PaletteStrategy: core.PaletteStrategy(paletteMode),
+		PalettePreset:   paletteKey,
+		Dither:          core.DitherMode(dither),
+		CropMode:        core.CropMode(crop),
+		PreviewScale:    previewScale,
+		AlphaMode:       core.AlphaMode(alphaMode),
+		BackgroundColor: backgroundColor,
+		EmitDebug:       emitDebug,
+	}
+
+	return opts, nil
 }
 
 func parseSize(size string) (int, int, error) {

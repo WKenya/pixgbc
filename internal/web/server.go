@@ -385,33 +385,5 @@ func formHexColorDefault(r *http.Request, key string, fallback color.NRGBA) (col
 	if raw == "" {
 		return fallback, nil
 	}
-	if strings.HasPrefix(raw, "#") {
-		raw = raw[1:]
-	}
-	if len(raw) != 6 {
-		return color.NRGBA{}, fmt.Errorf("want #RRGGBB")
-	}
-
-	parse := func(pair string) (uint8, error) {
-		value, err := strconv.ParseUint(pair, 16, 8)
-		if err != nil {
-			return 0, err
-		}
-		return uint8(value), nil
-	}
-
-	rv, err := parse(raw[0:2])
-	if err != nil {
-		return color.NRGBA{}, err
-	}
-	gv, err := parse(raw[2:4])
-	if err != nil {
-		return color.NRGBA{}, err
-	}
-	bv, err := parse(raw[4:6])
-	if err != nil {
-		return color.NRGBA{}, err
-	}
-
-	return color.NRGBA{R: rv, G: gv, B: bv, A: 0xFF}, nil
+	return core.ParseHexColor(raw)
 }
