@@ -5,6 +5,12 @@ const widthInput = document.querySelector("#width");
 const heightInput = document.querySelector("#height");
 const cropSelect = document.querySelector("#crop");
 const ditherSelect = document.querySelector("#dither");
+const alphaModeSelect = document.querySelector("#alpha-mode");
+const bgColorInput = document.querySelector("#bg-color");
+const previewScaleInput = document.querySelector("#preview-scale");
+const tileSizeInput = document.querySelector("#tile-size");
+const colorsPerTileInput = document.querySelector("#colors-per-tile");
+const maxPalettesInput = document.querySelector("#max-palettes");
 const debugInput = document.querySelector("#debug");
 const fileInput = document.querySelector("#file");
 const renderButton = document.querySelector("#render");
@@ -44,6 +50,12 @@ async function renderImage() {
   form.set("height", heightInput.value);
   form.set("crop", cropSelect.value);
   form.set("dither", ditherSelect.value);
+  form.set("alpha_mode", alphaModeSelect.value);
+  form.set("bg_color", bgColorInput.value);
+  form.set("preview_scale", previewScaleInput.value);
+  form.set("tile_size", tileSizeInput.value);
+  form.set("colors_per_tile", colorsPerTileInput.value);
+  form.set("max_palettes", maxPalettesInput.value);
   if (debugInput.checked || modeSelect.value === "cgb-bg") {
     form.set("debug", "1");
   }
@@ -75,8 +87,12 @@ async function renderImage() {
 
 function syncControls() {
   const extractMode = paletteModeSelect.value === "extract";
+  const strictMode = modeSelect.value === "cgb-bg";
   paletteSelect.disabled = extractMode;
-  debugInput.checked = debugInput.checked || modeSelect.value === "cgb-bg";
+  for (const element of document.querySelectorAll(".strict-only input")) {
+    element.disabled = !strictMode;
+  }
+  debugInput.checked = debugInput.checked || strictMode;
 }
 
 renderButton.addEventListener("click", () => {

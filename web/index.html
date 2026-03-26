@@ -69,6 +69,39 @@
           </select>
         </label>
 
+        <label class="field">
+          <span>Alpha</span>
+          <select id="alpha-mode">
+            <option value="flatten">flatten</option>
+            <option value="reserve-color0">reserve-color0</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>BG Color</span>
+          <input id="bg-color" type="color" value="#f4f1e8">
+        </label>
+
+        <label class="field">
+          <span>Preview Scale</span>
+          <input id="preview-scale" type="number" min="1" value="6">
+        </label>
+
+        <label class="field strict-only">
+          <span>Tile Size</span>
+          <input id="tile-size" type="number" min="1" value="8">
+        </label>
+
+        <label class="field strict-only">
+          <span>Colors/Tile</span>
+          <input id="colors-per-tile" type="number" min="2" max="16" value="4">
+        </label>
+
+        <label class="field strict-only">
+          <span>Max Palettes</span>
+          <input id="max-palettes" type="number" min="1" max="16" value="8">
+        </label>
+
         <label class="field checkbox">
           <span>Debug Sheet</span>
           <input id="debug" type="checkbox">

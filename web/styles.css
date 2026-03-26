@@ -103,6 +103,10 @@ button {
   height: 24px;
 }
 
+.strict-only input:disabled {
+  opacity: 0.5;
+}
+
 .status {
   margin: 0;
   min-height: 1.25rem;

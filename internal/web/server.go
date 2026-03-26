@@ -250,6 +250,7 @@ func parseRenderConfig(r *http.Request) (core.Config, error) {
 		PalettePreset:   formValueDefault(r, "palette", defaults.PalettePreset),
 		Dither:          core.DitherMode(formValueDefault(r, "dither", string(defaults.Dither))),
 		CropMode:        core.CropMode(formValueDefault(r, "crop", string(defaults.CropMode))),
+		AlphaMode:       core.AlphaMode(formValueDefault(r, "alpha_mode", string(defaults.AlphaMode))),
 		EmitDebug:       formBool(r, "debug"),
 	}
 
@@ -265,10 +266,30 @@ func parseRenderConfig(r *http.Request) (core.Config, error) {
 	if err != nil {
 		return core.Config{}, fmt.Errorf("invalid preview_scale: %w", err)
 	}
+	tileSize, err := formIntDefault(r, "tile_size", defaults.TileSize)
+	if err != nil {
+		return core.Config{}, fmt.Errorf("invalid tile_size: %w", err)
+	}
+	colorsPerTile, err := formIntDefault(r, "colors_per_tile", defaults.ColorsPerTile)
+	if err != nil {
+		return core.Config{}, fmt.Errorf("invalid colors_per_tile: %w", err)
+	}
+	maxPalettes, err := formIntDefault(r, "max_palettes", defaults.MaxPalettes)
+	if err != nil {
+		return core.Config{}, fmt.Errorf("invalid max_palettes: %w", err)
+	}
+	backgroundColor, err := formHexColorDefault(r, "bg_color", defaults.BackgroundColor)
+	if err != nil {
+		return core.Config{}, fmt.Errorf("invalid bg_color: %w", err)
+	}
 
 	cfg.TargetWidth = width
 	cfg.TargetHeight = height
 	cfg.PreviewScale = previewScale
+	cfg.TileSize = tileSize
+	cfg.ColorsPerTile = colorsPerTile
+	cfg.MaxPalettes = maxPalettes
+	cfg.BackgroundColor = backgroundColor
 
 	return cfg, nil
 }
@@ -296,4 +317,40 @@ func formBool(r *http.Request, key string) bool {
 	default:
 		return false
 	}
+}
+
+func formHexColorDefault(r *http.Request, key string, fallback color.NRGBA) (color.NRGBA, error) {
+	raw := strings.TrimSpace(r.FormValue(key))
+	if raw == "" {
+		return fallback, nil
+	}
+	if strings.HasPrefix(raw, "#") {
+		raw = raw[1:]
+	}
+	if len(raw) != 6 {
+		return color.NRGBA{}, fmt.Errorf("want #RRGGBB")
+	}
+
+	parse := func(pair string) (uint8, error) {
+		value, err := strconv.ParseUint(pair, 16, 8)
+		if err != nil {
+			return 0, err
+		}
+		return uint8(value), nil
+	}
+
+	rv, err := parse(raw[0:2])
+	if err != nil {
+		return color.NRGBA{}, err
+	}
+	gv, err := parse(raw[2:4])
+	if err != nil {
+		return color.NRGBA{}, err
+	}
+	bv, err := parse(raw[4:6])
+	if err != nil {
+		return color.NRGBA{}, err
+	}
+
+	return color.NRGBA{R: rv, G: gv, B: bv, A: 0xFF}, nil
 }

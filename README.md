@@ -37,7 +37,7 @@ go run ./cmd/pixgbc serve --addr 127.0.0.1:8080
 
 `inspect --json` now reports dominant colors, estimated strict-mode fit, and recommended mode/palette preset.
 
-`serve` exposes browser controls for mode, preset vs extract, width/height, crop, dither, and debug output.
+`serve` exposes browser controls for mode, preset vs extract, width/height, crop, dither, alpha mode, background color, preview scale, strict-mode tile params, and debug output.
 
 `serve` persists browser renders into a temp review store and exposes:
 

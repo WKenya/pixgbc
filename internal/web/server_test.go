@@ -163,15 +163,20 @@ func TestRenderPersistsFormConfig(t *testing.T) {
 		t.Fatalf("part.Write() error = %v", err)
 	}
 	fields := map[string]string{
-		"mode":          "relaxed",
-		"palette_mode":  "extract",
-		"palette":       "lcd-cool",
-		"width":         "96",
-		"height":        "80",
-		"crop":          "fit",
-		"dither":        "none",
-		"preview_scale": "3",
-		"debug":         "1",
+		"mode":            "relaxed",
+		"palette_mode":    "extract",
+		"palette":         "lcd-cool",
+		"width":           "96",
+		"height":          "80",
+		"crop":            "fit",
+		"dither":          "none",
+		"alpha_mode":      "reserve-color0",
+		"bg_color":        "#112233",
+		"preview_scale":   "3",
+		"tile_size":       "12",
+		"colors_per_tile": "3",
+		"max_palettes":    "6",
+		"debug":           "1",
 	}
 	for key, value := range fields {
 		if err := writer.WriteField(key, value); err != nil {
@@ -223,8 +228,57 @@ func TestRenderPersistsFormConfig(t *testing.T) {
 	if record.Config.PreviewScale != 3 {
 		t.Fatalf("record.Config.PreviewScale = %d, want 3", record.Config.PreviewScale)
 	}
+	if record.Config.AlphaMode != "reserve-color0" {
+		t.Fatalf("record.Config.AlphaMode = %q, want reserve-color0", record.Config.AlphaMode)
+	}
+	if record.Config.BackgroundColor.R != 0x11 || record.Config.BackgroundColor.G != 0x22 || record.Config.BackgroundColor.B != 0x33 {
+		t.Fatalf("record.Config.BackgroundColor = %#v, want #112233", record.Config.BackgroundColor)
+	}
+	if record.Config.TileSize != 12 {
+		t.Fatalf("record.Config.TileSize = %d, want 12", record.Config.TileSize)
+	}
+	if record.Config.ColorsPerTile != 3 {
+		t.Fatalf("record.Config.ColorsPerTile = %d, want 3", record.Config.ColorsPerTile)
+	}
+	if record.Config.MaxPalettes != 6 {
+		t.Fatalf("record.Config.MaxPalettes = %d, want 6", record.Config.MaxPalettes)
+	}
 	if !record.Config.EmitDebug {
 		t.Fatal("record.Config.EmitDebug = false, want true")
+	}
+}
+
+func TestRenderRejectsInvalidBGColor(t *testing.T) {
+	store, err := review.NewTempStore(t.TempDir(), time.Hour)
+	if err != nil {
+		t.Fatalf("NewTempStore() error = %v", err)
+	}
+
+	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "bad-bg.png")
+	if err != nil {
+		t.Fatalf("CreateFormFile() error = %v", err)
+	}
+	if _, err := part.Write(makePNG(t)); err != nil {
+		t.Fatalf("part.Write() error = %v", err)
+	}
+	if err := writer.WriteField("bg_color", "#12"); err != nil {
+		t.Fatalf("WriteField(bg_color) error = %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("writer.Close() error = %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/render", &body)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("POST /api/render status = %d, want 400", recorder.Code)
 	}
 }
 
