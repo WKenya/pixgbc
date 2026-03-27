@@ -118,14 +118,15 @@ func TestGoldenHashCGBBG(t *testing.T) {
 		FileSize:   384,
 		FrameCount: 1,
 	}), core.Config{
-		Mode:          core.ModeCGBBG,
-		TargetWidth:   24,
-		TargetHeight:  16,
-		TileSize:      8,
-		ColorsPerTile: 4,
-		MaxPalettes:   3,
-		PreviewScale:  1,
-		Dither:        core.DitherNone,
+		Mode:            core.ModeCGBBG,
+		TargetWidth:     24,
+		TargetHeight:    16,
+		TileSize:        8,
+		ColorsPerTile:   4,
+		MaxPalettes:     3,
+		PreviewScale:    1,
+		Dither:          core.DitherNone,
+		PaletteStrategy: core.PaletteExtract,
 	})
 	if err != nil {
 		t.Fatalf("RunCGBBG() error = %v", err)

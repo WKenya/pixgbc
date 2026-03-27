@@ -4,9 +4,11 @@ import (
 	"context"
 	"image"
 	"image/color"
+	"slices"
 	"testing"
 
 	"github.com/WKenya/pixgbc/internal/core"
+	"github.com/WKenya/pixgbc/internal/palette"
 	"github.com/WKenya/pixgbc/internal/source"
 )
 
@@ -32,15 +34,16 @@ func TestRunCGBBGProducesAssignmentsBanksAndDebug(t *testing.T) {
 		FileSize:   64,
 		FrameCount: 1,
 	}), core.Config{
-		Mode:          core.ModeCGBBG,
-		TargetWidth:   16,
-		TargetHeight:  8,
-		TileSize:      8,
-		ColorsPerTile: 4,
-		MaxPalettes:   2,
-		PreviewScale:  1,
-		Dither:        core.DitherNone,
-		EmitDebug:     true,
+		Mode:            core.ModeCGBBG,
+		TargetWidth:     16,
+		TargetHeight:    8,
+		TileSize:        8,
+		ColorsPerTile:   4,
+		MaxPalettes:     2,
+		PreviewScale:    1,
+		Dither:          core.DitherNone,
+		PaletteStrategy: core.PaletteExtract,
+		EmitDebug:       true,
 	})
 	if err != nil {
 		t.Fatalf("RunCGBBG() error = %v", err)
@@ -94,14 +97,15 @@ func TestRunCGBBGMergesTilePalettesDownToMaxBanks(t *testing.T) {
 		FileSize:   96,
 		FrameCount: 1,
 	}), core.Config{
-		Mode:          core.ModeCGBBG,
-		TargetWidth:   24,
-		TargetHeight:  8,
-		TileSize:      8,
-		ColorsPerTile: 4,
-		MaxPalettes:   2,
-		PreviewScale:  1,
-		Dither:        core.DitherNone,
+		Mode:            core.ModeCGBBG,
+		TargetWidth:     24,
+		TargetHeight:    8,
+		TileSize:        8,
+		ColorsPerTile:   4,
+		MaxPalettes:     2,
+		PreviewScale:    1,
+		Dither:          core.DitherNone,
+		PaletteStrategy: core.PaletteExtract,
 	})
 	if err != nil {
 		t.Fatalf("RunCGBBG() error = %v", err)
@@ -112,6 +116,98 @@ func TestRunCGBBGMergesTilePalettesDownToMaxBanks(t *testing.T) {
 	}
 	if got := len(result.TileAssignments); got != 3 {
 		t.Fatalf("len(TileAssignments) = %d, want 3", got)
+	}
+}
+
+func TestRunCGBBGPresetModeConstrainsBanksToPreset(t *testing.T) {
+	img := image.NewNRGBA(image.Rect(0, 0, 16, 8))
+	fillRect(img, image.Rect(0, 0, 8, 8), []color.NRGBA{
+		{R: 0x10, G: 0x40, B: 0xB0, A: 0xFF},
+		{R: 0x20, G: 0x60, B: 0xD0, A: 0xFF},
+		{R: 0x40, G: 0x90, B: 0xF0, A: 0xFF},
+		{R: 0xA0, G: 0xD0, B: 0xFF, A: 0xFF},
+	})
+	fillRect(img, image.Rect(8, 0, 16, 8), []color.NRGBA{
+		{R: 0xB0, G: 0x30, B: 0x20, A: 0xFF},
+		{R: 0xD0, G: 0x60, B: 0x30, A: 0xFF},
+		{R: 0xF0, G: 0x90, B: 0x40, A: 0xFF},
+		{R: 0xFF, G: 0xD0, B: 0x90, A: 0xFF},
+	})
+
+	result, err := RunCGBBG(context.Background(), source.NewSingleImage(img, core.SourceMeta{
+		Width:      16,
+		Height:     8,
+		Format:     "png",
+		FileSize:   64,
+		FrameCount: 1,
+	}), core.Config{
+		Mode:            core.ModeCGBBG,
+		TargetWidth:     16,
+		TargetHeight:    8,
+		TileSize:        8,
+		ColorsPerTile:   4,
+		MaxPalettes:     2,
+		PreviewScale:    1,
+		Dither:          core.DitherNone,
+		PaletteStrategy: core.PalettePreset,
+		PalettePreset:   "gbc-olive",
+	})
+	if err != nil {
+		t.Fatalf("RunCGBBG() error = %v", err)
+	}
+
+	preset := palette.MustGetPreset("gbc-olive")
+	for _, bank := range result.PaletteBanks {
+		for _, c := range bank.Colors {
+			if !slices.Contains(preset.Colors, c) {
+				t.Fatalf("bank color %#v not in preset %#v", c, preset.Colors)
+			}
+		}
+	}
+}
+
+func TestRunCGBBGExtractModeCanUseNonPresetColors(t *testing.T) {
+	img := image.NewNRGBA(image.Rect(0, 0, 8, 8))
+	fillRect(img, img.Bounds(), []color.NRGBA{
+		{R: 0x10, G: 0x40, B: 0xB0, A: 0xFF},
+		{R: 0x20, G: 0x60, B: 0xD0, A: 0xFF},
+		{R: 0x40, G: 0x90, B: 0xF0, A: 0xFF},
+		{R: 0xA0, G: 0xD0, B: 0xFF, A: 0xFF},
+	})
+
+	result, err := RunCGBBG(context.Background(), source.NewSingleImage(img, core.SourceMeta{
+		Width:      8,
+		Height:     8,
+		Format:     "png",
+		FileSize:   64,
+		FrameCount: 1,
+	}), core.Config{
+		Mode:            core.ModeCGBBG,
+		TargetWidth:     8,
+		TargetHeight:    8,
+		TileSize:        8,
+		ColorsPerTile:   4,
+		MaxPalettes:     1,
+		PreviewScale:    1,
+		Dither:          core.DitherNone,
+		PaletteStrategy: core.PaletteExtract,
+		PalettePreset:   "gbc-olive",
+	})
+	if err != nil {
+		t.Fatalf("RunCGBBG() error = %v", err)
+	}
+
+	preset := palette.MustGetPreset("gbc-olive")
+	foundNonPreset := false
+	for _, bank := range result.PaletteBanks {
+		for _, c := range bank.Colors {
+			if !slices.Contains(preset.Colors, c) {
+				foundNonPreset = true
+			}
+		}
+	}
+	if !foundNonPreset {
+		t.Fatalf("expected extract mode to use non-preset colors, got %#v", result.PaletteBanks)
 	}
 }
 

@@ -1,0 +1,13 @@
+.git
+.github
+bin
+docs/assets
+samples/outputs
+samples/reviews
+.env
+go.work
+go.work.sum
+*.test
+*.out
+coverage.*
+profile.cov

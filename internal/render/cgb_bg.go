@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"slices"
 
 	"github.com/WKenya/pixgbc/internal/core"
 	"github.com/WKenya/pixgbc/internal/palette"
@@ -31,10 +32,12 @@ func RunCGBBG(ctx context.Context, src core.Source, cfg core.Config) (*core.Resu
 		return nil, err
 	}
 
-	var guidedPreset *palette.Preset
+	var selectedPreset *palette.Preset
 	if preset, ok := palette.GetPreset(cfg.PalettePreset); ok {
 		cfg = applyPresetTuning(cfg, preset)
-		guidedPreset = &preset
+		selectedPreset = &preset
+	} else if cfg.PaletteStrategy == core.PalettePreset {
+		return nil, fmt.Errorf("%w: %s", core.ErrUnknownPalette, cfg.PalettePreset)
 	}
 
 	bg := cfg.BackgroundColor
@@ -50,17 +53,30 @@ func RunCGBBG(ctx context.Context, src core.Source, cfg core.Config) (*core.Resu
 	tiles := splitIntoTiles(normalized, cfg.TileSize)
 	tilePalettes := make([][]color.NRGBA, 0, len(tiles))
 	for _, tile := range tiles {
-		tilePalette, err := palette.Extract(tile.image, palette.ExtractOptions{
-			Count:        cfg.ColorsPerTile,
-			GuidedPreset: guidedPreset,
-		})
-		if err != nil {
-			return nil, err
+		var tilePalette []color.NRGBA
+		switch cfg.PaletteStrategy {
+		case core.PalettePreset:
+			if selectedPreset == nil {
+				return nil, fmt.Errorf("%w: %s", core.ErrUnknownPalette, cfg.PalettePreset)
+			}
+			tilePalette = constrainTileToPreset(tile.image, selectedPreset.Colors, cfg.ColorsPerTile)
+		case core.PaletteExtract:
+			tilePalette, err = palette.Extract(tile.image, palette.ExtractOptions{
+				Count: cfg.ColorsPerTile,
+			})
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("%w: %s", core.ErrInvalidConfig, cfg.PaletteStrategy)
 		}
 		tilePalettes = append(tilePalettes, tilePalette)
 	}
 
 	bankPalettes := palette.ClusterTilePalettes(tilePalettes, cfg.MaxPalettes, cfg.ColorsPerTile)
+	if cfg.PaletteStrategy == core.PalettePreset && selectedPreset != nil {
+		bankPalettes = snapBankPalettesToPreset(bankPalettes, selectedPreset.Colors, cfg.ColorsPerTile)
+	}
 	assignments := palette.AssignTilePalettesToBanks(tilePalettes, bankPalettes)
 
 	finalImage := image.NewNRGBA(normalized.Bounds())
@@ -214,6 +230,114 @@ func makeTileBankHeatmap(bounds image.Rectangle, tileSize int, tiles []tileJob, 
 			}
 		}
 	}
+	return out
+}
+
+func constrainTileToPreset(img image.Image, presetColors []color.NRGBA, colorsPerTile int) []color.NRGBA {
+	if len(presetColors) == 0 || colorsPerTile <= 0 {
+		return nil
+	}
+
+	type presetHit struct {
+		color color.NRGBA
+		count int
+		index int
+	}
+
+	hits := make([]presetHit, 0, len(presetColors))
+	for i, c := range presetColors {
+		hits = append(hits, presetHit{color: c, index: i})
+	}
+
+	bounds := img.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			src := color.NRGBAModel.Convert(img.At(x, y)).(color.NRGBA)
+			best := 0
+			bestDistance := palette.SquaredDistance(src, presetColors[0])
+			for i := 1; i < len(presetColors); i++ {
+				distance := palette.SquaredDistance(src, presetColors[i])
+				if distance < bestDistance {
+					best = i
+					bestDistance = distance
+				}
+			}
+			hits[best].count++
+		}
+	}
+
+	slices.SortFunc(hits, func(a, b presetHit) int {
+		if a.count != b.count {
+			return b.count - a.count
+		}
+		return a.index - b.index
+	})
+
+	out := make([]color.NRGBA, 0, colorsPerTile)
+	for _, hit := range hits {
+		if len(out) >= colorsPerTile {
+			break
+		}
+		out = append(out, hit.color)
+	}
+	for len(out) < colorsPerTile {
+		out = append(out, out[len(out)-1])
+	}
+
+	return out
+}
+
+func snapBankPalettesToPreset(bankPalettes [][]color.NRGBA, presetColors []color.NRGBA, colorsPerTile int) [][]color.NRGBA {
+	out := make([][]color.NRGBA, 0, len(bankPalettes))
+	for _, bank := range bankPalettes {
+		out = append(out, snapPaletteToPreset(bank, presetColors, colorsPerTile))
+	}
+	return out
+}
+
+func snapPaletteToPreset(colors []color.NRGBA, presetColors []color.NRGBA, colorsPerTile int) []color.NRGBA {
+	if len(presetColors) == 0 {
+		return append([]color.NRGBA(nil), colors...)
+	}
+
+	out := make([]color.NRGBA, 0, colorsPerTile)
+	used := make([]bool, len(presetColors))
+	for _, candidate := range colors {
+		best := -1
+		bestDistance := 0
+		for i, presetColor := range presetColors {
+			if used[i] {
+				continue
+			}
+			distance := palette.SquaredDistance(candidate, presetColor)
+			if best == -1 || distance < bestDistance {
+				best = i
+				bestDistance = distance
+			}
+		}
+		if best == -1 {
+			break
+		}
+		used[best] = true
+		out = append(out, presetColors[best])
+		if len(out) >= colorsPerTile {
+			break
+		}
+	}
+
+	for _, presetColor := range presetColors {
+		if len(out) >= colorsPerTile {
+			break
+		}
+		if slices.Contains(out, presetColor) {
+			continue
+		}
+		out = append(out, presetColor)
+	}
+	for len(out) < colorsPerTile {
+		out = append(out, out[len(out)-1])
+	}
+
 	return out
 }
 
