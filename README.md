@@ -35,6 +35,26 @@ make sample-outputs
 make docs-assets
 ```
 
+## Docker
+
+Build:
+
+```sh
+docker build -t pixgbc:local .
+```
+
+Run the server:
+
+```sh
+docker run --rm -p 8080:8080 pixgbc:local
+```
+
+Run with a token:
+
+```sh
+docker run --rm -p 8080:8080 pixgbc:local serve --listen 0.0.0.0:8080 --token demo-token --artifact-ttl 24h --max-upload-bytes 10MB
+```
+
 `convert --emit-review` writes `final.png`, `preview.png`, and `meta.json` into a review bundle directory and prints the bundle path.
 
 `convert --mode cgb-bg` runs the stricter tile/palette-bank solver. Add `--debug` to persist a composed debug sheet into the review bundle.
@@ -46,6 +66,11 @@ Checked-in sample inputs live in [samples/README.md](/Users/wesleykenyon/code/pi
 `inspect --json` now reports dominant colors, estimated strict-mode fit, and recommended mode/palette preset.
 
 `serve` exposes browser controls for token, mode, preset vs extract, width/height, crop, dither, alpha mode, background color, brightness/contrast/gamma, preview scale, strict-mode tile params, and debug output.
+
+In `cgb-bg`:
+
+- `palette-mode preset` locks strict-mode banks back to the selected preset palette
+- `palette-mode extract` uses direct sampled tile palettes from the image
 
 If `serve` binds beyond localhost, `--token` is required. The token works via `?token=...` or `Authorization: Bearer ...`, and the web UI now propagates query-token links for protected review/artifact pages.
 
