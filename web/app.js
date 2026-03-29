@@ -23,6 +23,7 @@ const fileInput = document.querySelector("#file");
 const renderButton = document.querySelector("#render");
 const statusNode = document.querySelector("#status");
 const previewImage = document.querySelector("#preview");
+const consoleScreen = document.querySelector(".console-screen");
 const linksNode = document.querySelector("#links");
 const refreshHistoryButton = document.querySelector("#refresh-history");
 const historyListNode = document.querySelector("#history-list");
@@ -84,6 +85,10 @@ function syncAuthUI() {
   loginButton.hidden = !sessionState.auth_required || sessionState.authenticated;
   logoutButton.hidden = !sessionState.auth_required || !sessionState.authenticated;
   renderButton.disabled = locked || renderInFlight;
+}
+
+function syncPreviewState() {
+  consoleScreen.classList.toggle("has-image", Boolean(previewImage.getAttribute("src")));
 }
 
 async function apiFetch(url, init = {}) {
@@ -163,6 +168,7 @@ async function logoutSession() {
 
   sessionState = await response.json();
   previewImage.removeAttribute("src");
+  syncPreviewState();
   linksNode.innerHTML = "";
   historyListNode.innerHTML = "<p class=\"status\">sign in to view render history</p>";
   statusNode.textContent = "session cleared";
@@ -230,6 +236,7 @@ async function loadHistory() {
     <article class="history-item">
       <a href="${item.review_url}" target="_blank" rel="noreferrer"><img src="${item.preview_url}" alt="Preview for ${item.id}"></a>
       <div>
+        <span class="stamp">saved render</span>
         <p><strong>${item.mode}</strong> · ${item.width}x${item.height}</p>
         <p>${new Date(item.created_at).toLocaleString()}</p>
         <p class="links">
@@ -304,6 +311,7 @@ async function renderImage() {
 
   const payload = await response.json();
   previewImage.src = payload.preview_url;
+  syncPreviewState();
   linksNode.innerHTML = `
     <a href="${payload.review_url}" target="_blank" rel="noreferrer">review page</a>
     <span> · </span>
@@ -365,6 +373,7 @@ modeSelect.addEventListener("change", syncControls);
 
 void (async () => {
   syncDebugUI();
+  syncPreviewState();
   const bootstrapped = await bootstrapSessionFromURL();
   if (!bootstrapped) {
     await loadSession();

@@ -7,151 +7,203 @@
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
+    <div class="page-noise" aria-hidden="true"></div>
     <main class="shell">
-      <section class="hero">
-        <p class="eyebrow">Game Boy Color image converter</p>
-        <h1>Local pixel lab</h1>
-        <p class="lede">Single-image relaxed-mode preview. CLI + web share the same render path.</p>
+      <section class="hero panel">
+        <div class="hero-copy">
+          <p class="eyebrow">Game Boy Color image converter</p>
+          <h1>Pixel Field Kit</h1>
+          <p class="lede">Upload a source image, tune the conversion pass, and kick out a Game Boy Color-flavored render with the same engine used by the CLI.</p>
+          <div class="hero-tags">
+            <span>160×144 native</span>
+            <span>preset or sampled palettes</span>
+            <span>strict tile-bank mode</span>
+          </div>
+        </div>
+        <aside class="hero-callout">
+          <p class="callout-label">Field Notes</p>
+          <p class="callout-copy">Relaxed mode chases the nicest image. <code>cgb-bg</code> leans into tile rules, shared banks, and cartridge-era constraints.</p>
+        </aside>
       </section>
 
-      <section class="panel controls">
-        <div class="auth-strip">
-          <div>
-            <p class="auth-label">Access</p>
-            <p id="auth-status" class="auth-status">Checking session...</p>
+      <section class="workbench">
+        <section class="panel controls">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Workbench</p>
+              <h2>Render Setup</h2>
+            </div>
+            <p class="panel-copy">Tune the conversion pass. Output updates land in the handheld preview and session archive.</p>
           </div>
-          <div class="auth-actions">
-            <label class="field">
-              <span>Token</span>
-              <input id="token" type="password" placeholder="enter access token">
+
+          <div class="auth-strip">
+            <div>
+              <p class="auth-label">Access</p>
+              <p id="auth-status" class="auth-status">Checking session...</p>
+            </div>
+            <div class="auth-actions">
+              <label class="field">
+                <span>Token</span>
+                <input id="token" type="password" placeholder="enter access token">
+              </label>
+              <button id="login" type="button">Sign In</button>
+              <button id="logout" class="secondary" type="button" hidden>Sign Out</button>
+            </div>
+          </div>
+
+          <div class="control-grid">
+            <label class="field field-wide">
+              <span>Image</span>
+              <input id="file" type="file" accept="image/png,image/jpeg,image/gif">
             </label>
-            <button id="login" type="button">Sign In</button>
-            <button id="logout" class="secondary" type="button" hidden>Sign Out</button>
+
+            <label class="field">
+              <span>Palette Mode</span>
+              <select id="palette-mode">
+                <option value="preset">preset (lock)</option>
+                <option value="extract">extract (sample)</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Palette</span>
+              <select id="palette"></select>
+            </label>
+
+            <label class="field">
+              <span>Mode</span>
+              <select id="mode">
+                <option value="relaxed">relaxed</option>
+                <option value="cgb-bg">cgb-bg</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Width</span>
+              <input id="width" type="number" min="1" value="160">
+            </label>
+
+            <label class="field">
+              <span>Height</span>
+              <input id="height" type="number" min="1" value="144">
+            </label>
+
+            <label class="field">
+              <span>Crop</span>
+              <select id="crop">
+                <option value="fill">fill</option>
+                <option value="fit">fit</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Dither</span>
+              <select id="dither">
+                <option value="ordered">ordered</option>
+                <option value="none">none</option>
+                <option value="floyd-steinberg">floyd-steinberg</option>
+                <option value="atkinson">atkinson</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Alpha</span>
+              <select id="alpha-mode">
+                <option value="flatten">flatten</option>
+                <option value="reserve-color0">reserve-color0</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>BG Color</span>
+              <input id="bg-color" type="color" value="#f4f1e8">
+            </label>
+
+            <label class="field">
+              <span>Brightness</span>
+              <input id="brightness" type="number" step="0.05" value="0">
+            </label>
+
+            <label class="field">
+              <span>Contrast</span>
+              <input id="contrast" type="number" step="0.05" value="0">
+            </label>
+
+            <label class="field">
+              <span>Gamma</span>
+              <input id="gamma" type="number" min="0.05" step="0.05" value="1">
+            </label>
+
+            <label class="field">
+              <span>Preview Scale</span>
+              <input id="preview-scale" type="number" min="1" value="6">
+            </label>
+
+            <label class="field strict-only">
+              <span>Tile Size</span>
+              <input id="tile-size" type="number" min="1" value="8">
+            </label>
+
+            <label class="field strict-only">
+              <span>Colors/Tile</span>
+              <input id="colors-per-tile" type="number" min="2" max="16" value="4">
+            </label>
+
+            <label class="field strict-only">
+              <span>Max Palettes</span>
+              <input id="max-palettes" type="number" min="1" max="16" value="8">
+            </label>
+
+            <label class="field checkbox debug-only">
+              <span>Debug Sheet</span>
+              <input id="debug" type="checkbox">
+            </label>
           </div>
+
+          <div class="control-foot">
+            <button id="render">Render Cartridge Frame</button>
+            <p id="status" class="status">Load an image, then render.</p>
+          </div>
+        </section>
+
+        <div class="display-stack">
+          <section class="panel result console">
+            <div class="console-badge">Live Output</div>
+            <div class="console-screen-frame">
+              <div class="console-screen">
+                <div class="screen-raster"></div>
+                <img id="preview" alt="Rendered output preview">
+              </div>
+            </div>
+            <div class="console-meta">
+              <p class="console-label">Link Port</p>
+              <p id="links" class="links"></p>
+            </div>
+            <div class="console-controls" aria-hidden="true">
+              <div class="dpad">
+                <span></span>
+              </div>
+              <div class="action-buttons">
+                <span></span>
+                <span></span>
+              </div>
+              <div class="speaker-grill">
+                <span></span><span></span><span></span><span></span>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel history">
+            <div class="history-head">
+              <div>
+                <p class="panel-kicker">Archive</p>
+                <h2>Session Cartridges</h2>
+              </div>
+              <button id="refresh-history" type="button">Refresh</button>
+            </div>
+            <div id="history-list" class="history-list"></div>
+          </section>
         </div>
-
-        <label class="field">
-          <span>Image</span>
-          <input id="file" type="file" accept="image/png,image/jpeg,image/gif">
-        </label>
-
-        <label class="field">
-          <span>Palette Mode</span>
-          <select id="palette-mode">
-            <option value="preset">preset (lock)</option>
-            <option value="extract">extract (sample)</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span>Palette</span>
-          <select id="palette"></select>
-        </label>
-
-        <label class="field">
-          <span>Mode</span>
-          <select id="mode">
-            <option value="relaxed">relaxed</option>
-            <option value="cgb-bg">cgb-bg</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span>Width</span>
-          <input id="width" type="number" min="1" value="160">
-        </label>
-
-        <label class="field">
-          <span>Height</span>
-          <input id="height" type="number" min="1" value="144">
-        </label>
-
-        <label class="field">
-          <span>Crop</span>
-          <select id="crop">
-            <option value="fill">fill</option>
-            <option value="fit">fit</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span>Dither</span>
-          <select id="dither">
-            <option value="ordered">ordered</option>
-            <option value="none">none</option>
-            <option value="floyd-steinberg">floyd-steinberg</option>
-            <option value="atkinson">atkinson</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span>Alpha</span>
-          <select id="alpha-mode">
-            <option value="flatten">flatten</option>
-            <option value="reserve-color0">reserve-color0</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span>BG Color</span>
-          <input id="bg-color" type="color" value="#f4f1e8">
-        </label>
-
-        <label class="field">
-          <span>Brightness</span>
-          <input id="brightness" type="number" step="0.05" value="0">
-        </label>
-
-        <label class="field">
-          <span>Contrast</span>
-          <input id="contrast" type="number" step="0.05" value="0">
-        </label>
-
-        <label class="field">
-          <span>Gamma</span>
-          <input id="gamma" type="number" min="0.05" step="0.05" value="1">
-        </label>
-
-        <label class="field">
-          <span>Preview Scale</span>
-          <input id="preview-scale" type="number" min="1" value="6">
-        </label>
-
-        <label class="field strict-only">
-          <span>Tile Size</span>
-          <input id="tile-size" type="number" min="1" value="8">
-        </label>
-
-        <label class="field strict-only">
-          <span>Colors/Tile</span>
-          <input id="colors-per-tile" type="number" min="2" max="16" value="4">
-        </label>
-
-        <label class="field strict-only">
-          <span>Max Palettes</span>
-          <input id="max-palettes" type="number" min="1" max="16" value="8">
-        </label>
-
-        <label class="field checkbox debug-only">
-          <span>Debug Sheet</span>
-          <input id="debug" type="checkbox">
-        </label>
-
-        <button id="render">Render</button>
-        <p id="status" class="status"></p>
-      </section>
-
-      <section class="panel result">
-        <img id="preview" alt="Rendered output preview">
-        <p id="links" class="links"></p>
-      </section>
-
-      <section class="panel history">
-        <div class="history-head">
-          <h2>Session History</h2>
-          <button id="refresh-history" type="button">Refresh</button>
-        </div>
-        <div id="history-list" class="history-list"></div>
       </section>
     </main>
 
