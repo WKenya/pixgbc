@@ -184,8 +184,45 @@ h2 {
 }
 
 .hero-link a {
+  display: inline-grid;
+  gap: 4px;
+  min-width: min(100%, 320px);
+  padding: 12px 14px;
+  border: 2px solid var(--shell-edge);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(104, 122, 54, 0.12)),
+    rgba(248, 241, 223, 0.82);
+  color: var(--ink);
+  text-decoration: none;
+  box-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.4) inset,
+    4px 4px 0 rgba(77, 72, 57, 0.14);
+}
+
+.hero-link a:hover {
+  transform: translate(-1px, -1px);
+  box-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.4) inset,
+    5px 5px 0 rgba(77, 72, 57, 0.14);
+}
+
+.hero-link-label,
+.hero-link-value {
+  display: block;
+}
+
+.hero-link-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hero-link-value {
+  font-family: "Courier Prime", "Menlo", "Monaco", monospace;
+  font-size: 0.95rem;
   color: var(--accent-dark);
-  text-decoration-thickness: 2px;
+  word-break: break-word;
 }
 
 .hero-tags {
