@@ -52,7 +52,7 @@ docker run --rm -p 8080:8080 pixgbc:local
 Run with a token:
 
 ```sh
-docker run --rm -p 8080:8080 pixgbc:local serve --listen 0.0.0.0:8080 --token demo-token --artifact-ttl 24h --max-upload-bytes 10MB
+docker run --rm -p 8080:8080 pixgbc:local serve --listen 0.0.0.0:8080 --token demo-token --artifact-ttl 24h --session-ttl 12h --render-rate-per-minute 60 --max-concurrent-renders 2 --max-upload-bytes 10MB
 ```
 
 `convert --emit-review` writes `final.png`, `preview.png`, and `meta.json` into a review bundle directory and prints the bundle path.
@@ -65,14 +65,22 @@ Checked-in sample inputs live in [samples/README.md](/Users/wesleykenyon/code/pi
 
 `inspect --json` now reports dominant colors, estimated strict-mode fit, and recommended mode/palette preset.
 
-`serve` exposes browser controls for token, mode, preset vs extract, width/height, crop, dither, alpha mode, background color, brightness/contrast/gamma, preview scale, strict-mode tile params, and debug output.
+`serve` exposes browser controls for hosted sign-in, mode, preset vs extract, width/height, crop, dither, alpha mode, background color, brightness/contrast/gamma, preview scale, strict-mode tile params, and debug output.
 
 In `cgb-bg`:
 
 - `palette-mode preset` locks strict-mode banks back to the selected preset palette
 - `palette-mode extract` uses direct sampled tile palettes from the image
 
-If `serve` binds beyond localhost, `--token` is required. The token works via `?token=...` or `Authorization: Bearer ...`, and the web UI now propagates query-token links for protected review/artifact pages.
+If `serve` binds beyond localhost, `--token` is required. Browser sign-in now exchanges that token for an `HttpOnly` session cookie; direct/manual access still works via `?token=...` or `Authorization: Bearer ...` when needed.
+
+Hosted hardening knobs:
+
+- `--session-ttl 12h` controls browser session lifetime
+- `--render-rate-per-minute 60` caps per-IP render volume; `0` disables
+- `--max-concurrent-renders 2` caps in-flight renders; `0` disables
+
+`serve` now sends basic hardening headers on all responses: CSP, `nosniff`, `DENY` framing, `no-referrer`, and locked-down permissions policy.
 
 `serve --artifact-ttl` now does an initial expired-artifact sweep at startup and keeps cleaning old review bundles on an interval while the server runs.
 
@@ -82,6 +90,9 @@ If `serve` binds beyond localhost, `--token` is required. The token works via `?
 
 `serve` persists browser renders into a temp review store and exposes:
 
+- `GET /api/session`
+- `POST /api/session/login`
+- `POST /api/session/logout`
 - `POST /api/render`
 - `GET /api/renders/{id}`
 - `GET /api/renders/{id}/artifacts/{name}`

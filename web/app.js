@@ -1,5 +1,8 @@
 const paletteModeSelect = document.querySelector("#palette-mode");
 const tokenInput = document.querySelector("#token");
+const loginButton = document.querySelector("#login");
+const logoutButton = document.querySelector("#logout");
+const authStatusNode = document.querySelector("#auth-status");
 const paletteSelect = document.querySelector("#palette");
 const modeSelect = document.querySelector("#mode");
 const widthInput = document.querySelector("#width");
@@ -23,43 +26,142 @@ const previewImage = document.querySelector("#preview");
 const linksNode = document.querySelector("#links");
 const refreshHistoryButton = document.querySelector("#refresh-history");
 const historyListNode = document.querySelector("#history-list");
-const tokenStorageKey = "pixgbc.token";
 
-function activeToken() {
-  return tokenInput.value.trim();
+let renderInFlight = false;
+let sessionState = {
+  auth_required: false,
+  authenticated: true,
+};
+
+function authLocked() {
+  return sessionState.auth_required && !sessionState.authenticated;
 }
 
-function withToken(url) {
-  const token = activeToken();
-  if (!token) return url;
-  const separator = url.includes("?") ? "&" : "?";
-  return `${url}${separator}token=${encodeURIComponent(token)}`;
-}
-
-function restoreToken() {
-  const params = new URLSearchParams(window.location.search);
-  const tokenFromURL = params.get("token");
-  const tokenFromStorage = window.localStorage.getItem(tokenStorageKey);
-  tokenInput.value = tokenFromURL || tokenFromStorage || "";
-}
-
-function persistToken() {
-  const token = activeToken();
-  if (token) {
-    window.localStorage.setItem(tokenStorageKey, token);
+function syncAuthUI() {
+  if (!sessionState.auth_required) {
+    authStatusNode.textContent = "Open demo. No sign-in required.";
+  } else if (sessionState.authenticated) {
+    authStatusNode.textContent = "Protected demo. Session active in this browser.";
   } else {
-    window.localStorage.removeItem(tokenStorageKey);
+    authStatusNode.textContent = "Protected demo. Enter token to unlock renders and history.";
   }
+
+  const locked = authLocked();
+  tokenInput.disabled = !sessionState.auth_required || sessionState.authenticated;
+  loginButton.hidden = !sessionState.auth_required || sessionState.authenticated;
+  logoutButton.hidden = !sessionState.auth_required || !sessionState.authenticated;
+  renderButton.disabled = locked || renderInFlight;
 }
 
-async function loadPalettes() {
-  const response = await fetch(withToken("/api/palettes"));
+async function apiFetch(url, init = {}) {
+  return fetch(url, {
+    credentials: "same-origin",
+    ...init,
+  });
+}
+
+async function loadSession() {
+  const response = await apiFetch("/api/session");
+  if (!response.ok) {
+    authStatusNode.textContent = await response.text();
+    return false;
+  }
+  sessionState = await response.json();
+  syncAuthUI();
+  return true;
+}
+
+function clearSessionUI(message) {
+  sessionState = { auth_required: true, authenticated: false };
+  historyListNode.innerHTML = `<p class="status">${message}</p>`;
+  syncAuthUI();
+}
+
+function clearTokenQueryParam() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has("token")) {
+    return;
+  }
+  url.searchParams.delete("token");
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState({}, "", next);
+}
+
+async function loginWithToken({ quiet = false } = {}) {
+  const token = tokenInput.value.trim();
+  if (!token) {
+    if (!quiet) {
+      statusNode.textContent = "enter token first";
+    }
+    return false;
+  }
+
+  const response = await apiFetch("/api/session/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+
+  if (!response.ok) {
+    if (!quiet) {
+      statusNode.textContent = await response.text();
+    }
+    sessionState = { auth_required: true, authenticated: false };
+    syncAuthUI();
+    return false;
+  }
+
+  sessionState = await response.json();
+  tokenInput.value = "";
+  clearTokenQueryParam();
+  syncAuthUI();
+  statusNode.textContent = "session unlocked";
+  return true;
+}
+
+async function logoutSession() {
+  const response = await apiFetch("/api/session/logout", {
+    method: "POST",
+  });
   if (!response.ok) {
     statusNode.textContent = await response.text();
     return;
   }
-  const palettes = await response.json();
 
+  sessionState = await response.json();
+  previewImage.removeAttribute("src");
+  linksNode.innerHTML = "";
+  historyListNode.innerHTML = "<p class=\"status\">sign in to view render history</p>";
+  statusNode.textContent = "session cleared";
+  syncAuthUI();
+}
+
+async function bootstrapSessionFromURL() {
+  const token = new URL(window.location.href).searchParams.get("token");
+  if (!token) {
+    return false;
+  }
+  tokenInput.value = token;
+  return loginWithToken({ quiet: true });
+}
+
+async function loadPalettes() {
+  if (authLocked()) {
+    paletteSelect.innerHTML = "<option>sign in required</option>";
+    return;
+  }
+
+  const response = await apiFetch("/api/palettes");
+  if (response.status === 401) {
+    clearSessionUI("sign in to load palettes");
+    return;
+  }
+  if (!response.ok) {
+    statusNode.textContent = await response.text();
+    return;
+  }
+
+  const palettes = await response.json();
   paletteSelect.innerHTML = "";
   for (const palette of palettes) {
     const option = document.createElement("option");
@@ -70,7 +172,16 @@ async function loadPalettes() {
 }
 
 async function loadHistory() {
-  const response = await fetch(withToken("/api/renders?limit=20"));
+  if (authLocked()) {
+    historyListNode.innerHTML = "<p class=\"status\">sign in to view render history</p>";
+    return;
+  }
+
+  const response = await apiFetch("/api/renders?limit=20");
+  if (response.status === 401) {
+    clearSessionUI("sign in to view render history");
+    return;
+  }
   if (!response.ok) {
     historyListNode.innerHTML = `<p class="status">${await response.text()}</p>`;
     return;
@@ -102,13 +213,19 @@ async function loadHistory() {
 }
 
 async function renderImage() {
+  if (authLocked()) {
+    statusNode.textContent = "sign in first";
+    return;
+  }
+
   const file = fileInput.files?.[0];
   if (!file) {
     statusNode.textContent = "choose an image first";
     return;
   }
 
-  renderButton.disabled = true;
+  renderInFlight = true;
+  syncAuthUI();
   statusNode.textContent = "rendering...";
 
   const form = new FormData();
@@ -133,14 +250,22 @@ async function renderImage() {
     form.set("debug", "1");
   }
 
-  const response = await fetch(withToken("/api/render"), {
+  const response = await apiFetch("/api/render", {
     method: "POST",
     body: form,
   });
 
+  if (response.status === 401) {
+    clearSessionUI("sign in to render");
+    renderInFlight = false;
+    syncAuthUI();
+    statusNode.textContent = "sign in first";
+    return;
+  }
   if (!response.ok) {
     statusNode.textContent = await response.text();
-    renderButton.disabled = false;
+    renderInFlight = false;
+    syncAuthUI();
     return;
   }
 
@@ -155,7 +280,8 @@ async function renderImage() {
     ${payload.debug_url ? `<span> · </span><a href="${payload.debug_url}" target="_blank" rel="noreferrer">debug sheet</a>` : ""}
   `;
   statusNode.textContent = "render complete";
-  renderButton.disabled = false;
+  renderInFlight = false;
+  syncAuthUI();
   void loadHistory();
 }
 
@@ -169,10 +295,17 @@ function syncControls() {
   debugInput.checked = debugInput.checked || strictMode;
 }
 
-tokenInput.addEventListener("change", () => {
-  persistToken();
-  void loadPalettes();
-  void loadHistory();
+loginButton.addEventListener("click", () => {
+  void (async () => {
+    if (await loginWithToken()) {
+      await loadPalettes();
+      await loadHistory();
+    }
+  })();
+});
+
+logoutButton.addEventListener("click", () => {
+  void logoutSession();
 });
 
 renderButton.addEventListener("click", () => {
@@ -186,7 +319,12 @@ refreshHistoryButton.addEventListener("click", () => {
 paletteModeSelect.addEventListener("change", syncControls);
 modeSelect.addEventListener("change", syncControls);
 
-restoreToken();
-void loadPalettes();
-void loadHistory();
-syncControls();
+void (async () => {
+  const bootstrapped = await bootstrapSessionFromURL();
+  if (!bootstrapped) {
+    await loadSession();
+  }
+  await loadPalettes();
+  await loadHistory();
+  syncControls();
+})();

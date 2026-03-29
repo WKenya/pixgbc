@@ -484,11 +484,37 @@ Example:
 ]
 ```
 
+## `GET /api/session`
+Returns browser auth state.
+
+Example:
+
+```json
+{
+  "auth_required": true,
+  "authenticated": false
+}
+```
+
+## `POST /api/session/login`
+Accepts `{"token":"..."}` and, when valid, sets an `HttpOnly` session cookie for the browser UI.
+
+## `POST /api/session/logout`
+Clears the browser session cookie.
+
 ## Security/operational flags for `serve`
 - `--listen 127.0.0.1:8080`
 - `--token VALUE` (optional if binding beyond localhost)
 - `--artifact-ttl 24h`
+- `--session-ttl 12h`
+- `--render-rate-per-minute 60` (`0` disables)
+- `--max-concurrent-renders 2` (`0` disables)
 - `--max-upload-bytes 10MB`
+
+Hosted-mode notes:
+- browser UI should prefer session-cookie auth over query-token auth
+- query token and bearer token may remain available for manual/direct API access
+- all responses should include CSP, `X-Content-Type-Options`, frame, referrer, and permissions-policy headers
 
 ## JSON normalization requirements
 For reproducibility:

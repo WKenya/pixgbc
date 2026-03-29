@@ -18,17 +18,23 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 	fs.SetOutput(a.stderr)
 
 	var (
-		addr           string
-		listen         string
-		token          string
-		artifactTTLRaw string
-		maxUploadRaw   string
+		addr                 string
+		listen               string
+		token                string
+		artifactTTLRaw       string
+		sessionTTLRaw        string
+		maxUploadRaw         string
+		renderRatePerMinute  int
+		maxConcurrentRenders int
 	)
 	fs.StringVar(&addr, "addr", "127.0.0.1:8080", "listen address")
 	fs.StringVar(&listen, "listen", "", "listen address")
 	fs.StringVar(&token, "token", "", "access token for non-localhost binds")
 	fs.StringVar(&artifactTTLRaw, "artifact-ttl", "168h", "artifact retention duration")
+	fs.StringVar(&sessionTTLRaw, "session-ttl", "12h", "browser session duration when token auth is enabled")
 	fs.StringVar(&maxUploadRaw, "max-upload-bytes", "", "max upload size, e.g. 10MB")
+	fs.IntVar(&renderRatePerMinute, "render-rate-per-minute", 60, "per-IP render limit per minute, 0 disables")
+	fs.IntVar(&maxConcurrentRenders, "max-concurrent-renders", 2, "global concurrent render cap, 0 disables")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -41,8 +47,21 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 		_, _ = fmt.Fprintf(a.stderr, "invalid --artifact-ttl: %v\n", err)
 		return 2
 	}
+	sessionTTL, err := time.ParseDuration(sessionTTLRaw)
+	if err != nil {
+		_, _ = fmt.Fprintf(a.stderr, "invalid --session-ttl: %v\n", err)
+		return 2
+	}
 	if !isLocalListen(addr) && token == "" {
 		_, _ = fmt.Fprintln(a.stderr, "--token required when binding beyond localhost")
+		return 2
+	}
+	if renderRatePerMinute < 0 {
+		_, _ = fmt.Fprintln(a.stderr, "--render-rate-per-minute must be >= 0")
+		return 2
+	}
+	if maxConcurrentRenders < 0 {
+		_, _ = fmt.Fprintln(a.stderr, "--max-concurrent-renders must be >= 0")
 		return 2
 	}
 	limits := a.limits
@@ -70,8 +89,12 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 		Addr: addr,
 	}
 	handler := internalweb.NewServerWithStore(a.engine(), limits, store, internalweb.ServerConfig{
-		Token:     token,
-		LogOutput: a.stdout,
+		Token:                token,
+		LogOutput:            a.stdout,
+		SessionTTL:           sessionTTL,
+		RenderRateLimit:      renderRatePerMinute,
+		RenderRateWindow:     time.Minute,
+		MaxConcurrentRenders: maxConcurrentRenders,
 	})
 	server.Handler = handler
 	stopCleanup := startStoreCleanupLoop(ctx, a.stderr, store, artifactTTL)

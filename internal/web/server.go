@@ -22,15 +22,20 @@ import (
 )
 
 type Server struct {
-	engine core.Engine
-	limits ioimg.Limits
-	store  review.Store
-	cfg    ServerConfig
+	engine  core.Engine
+	limits  ioimg.Limits
+	store   review.Store
+	cfg     ServerConfig
+	limiter *renderLimiter
 }
 
 type ServerConfig struct {
-	Token     string
-	LogOutput io.Writer
+	Token                string
+	LogOutput            io.Writer
+	SessionTTL           time.Duration
+	RenderRateLimit      int
+	RenderRateWindow     time.Duration
+	MaxConcurrentRenders int
 }
 
 func NewServer(engine core.Engine, limits ioimg.Limits) (http.Handler, error) {
@@ -46,9 +51,19 @@ func NewServerWithConfig(engine core.Engine, limits ioimg.Limits, cfg ServerConf
 }
 
 func NewServerWithStore(engine core.Engine, limits ioimg.Limits, store review.Store, cfg ServerConfig) http.Handler {
-	server := &Server{engine: engine, limits: limits, store: store, cfg: cfg}
+	cfg = normalizeServerConfig(cfg)
+	server := &Server{
+		engine:  engine,
+		limits:  limits,
+		store:   store,
+		cfg:     cfg,
+		limiter: newRenderLimiter(cfg),
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", server.handleHealth)
+	mux.HandleFunc("GET /api/session", server.handleSessionStatus)
+	mux.HandleFunc("POST /api/session/login", server.handleSessionLogin)
+	mux.HandleFunc("POST /api/session/logout", server.handleSessionLogout)
 	mux.HandleFunc("GET /api/palettes", server.handlePalettes)
 	mux.HandleFunc("GET /api/renders", server.handleListRenders)
 	mux.HandleFunc("POST /api/render", server.handleRender)
@@ -56,7 +71,7 @@ func NewServerWithStore(engine core.Engine, limits ioimg.Limits, store review.St
 	mux.HandleFunc("GET /api/renders/{id}/artifacts/{name}", server.handleGetArtifact)
 	mux.HandleFunc("GET /renders/{id}", server.handleReviewPage)
 	mux.Handle("/", server.staticHandler())
-	return server.loggingMiddleware(mux)
+	return server.securityHeadersMiddleware(server.loggingMiddleware(mux))
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
@@ -98,6 +113,14 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
+	release, status, message := s.limiter.acquire(r, time.Now())
+	if release == nil {
+		s.logf("render reject status=%d reason=%q ip=%s", status, message, clientIP(r))
+		http.Error(w, message, status)
+		return
+	}
+	defer release()
+
 	r.Body = http.MaxBytesReader(w, r.Body, s.limits.MaxFileBytes)
 	if err := r.ParseMultipartForm(s.limits.MaxFileBytes); err != nil {
 		http.Error(w, fmt.Sprintf("parse upload: %v", err), http.StatusBadRequest)
@@ -308,38 +331,6 @@ func (s *Server) reviewURL(id string, token string) string {
 	return withTokenQuery("/renders/"+id, token)
 }
 
-func (s *Server) authorized(r *http.Request) bool {
-	if s.cfg.Token == "" {
-		return true
-	}
-	if r.URL.Query().Get("token") == s.cfg.Token {
-		return true
-	}
-	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-	if strings.HasPrefix(authHeader, "Bearer ") && strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer ")) == s.cfg.Token {
-		return true
-	}
-	return false
-}
-
-func (s *Server) requestTokenQuery(r *http.Request) string {
-	if s.cfg.Token == "" {
-		return ""
-	}
-	token := strings.TrimSpace(r.URL.Query().Get("token"))
-	if token == s.cfg.Token {
-		return token
-	}
-	return ""
-}
-
-func withTokenQuery(urlPath string, token string) string {
-	if token == "" {
-		return urlPath
-	}
-	return urlPath + "?token=" + token
-}
-
 func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -467,4 +458,20 @@ func formHexColorDefault(r *http.Request, key string, fallback color.NRGBA) (col
 		return fallback, nil
 	}
 	return core.ParseHexColor(raw)
+}
+
+func normalizeServerConfig(cfg ServerConfig) ServerConfig {
+	if cfg.SessionTTL <= 0 {
+		cfg.SessionTTL = 12 * time.Hour
+	}
+	if cfg.RenderRateWindow <= 0 {
+		cfg.RenderRateWindow = time.Minute
+	}
+	if cfg.RenderRateLimit < 0 {
+		cfg.RenderRateLimit = 0
+	}
+	if cfg.MaxConcurrentRenders < 0 {
+		cfg.MaxConcurrentRenders = 0
+	}
+	return cfg
 }

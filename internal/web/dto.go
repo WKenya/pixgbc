@@ -21,3 +21,8 @@ type RenderHistoryItem struct {
 	FinalURL   string `json:"final_url"`
 	DebugURL   string `json:"debug_url,omitempty"`
 }
+
+type SessionStatusResponse struct {
+	AuthRequired  bool `json:"auth_required"`
+	Authenticated bool `json:"authenticated"`
+}

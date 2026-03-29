@@ -66,6 +66,31 @@ h1 {
   align-items: end;
 }
 
+.auth-strip {
+  display: grid;
+  gap: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(40, 51, 31, 0.18);
+}
+
+.auth-label {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.auth-status {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.auth-actions {
+  display: grid;
+  gap: 12px;
+}
+
 .field {
   display: grid;
   gap: 6px;
@@ -96,6 +121,11 @@ button {
   color: #fffdf8;
   background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
   cursor: pointer;
+}
+
+button.secondary {
+  color: var(--ink);
+  background: #ede4d2;
 }
 
 .checkbox input {
@@ -187,6 +217,17 @@ button {
 @media (min-width: 780px) {
   .controls {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .auth-strip {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.7fr);
+    align-items: end;
+  }
+
+  .auth-actions {
+    grid-template-columns: minmax(0, 2fr) auto auto;
+    align-items: end;
   }
 
   .status {
