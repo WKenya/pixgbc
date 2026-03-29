@@ -26,6 +26,7 @@ const previewImage = document.querySelector("#preview");
 const linksNode = document.querySelector("#links");
 const refreshHistoryButton = document.querySelector("#refresh-history");
 const historyListNode = document.querySelector("#history-list");
+const debugUIStorageKey = "pixgbc.debug-ui";
 
 let renderInFlight = false;
 let sessionState = {
@@ -35,6 +36,38 @@ let sessionState = {
 
 function authLocked() {
   return sessionState.auth_required && !sessionState.authenticated;
+}
+
+function isLoopbackHost(hostname) {
+  return hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "[::1]" ||
+    hostname === "0.0.0.0" ||
+    hostname.endsWith(".localhost");
+}
+
+function debugUIEnabled() {
+  return isLoopbackHost(window.location.hostname) || window.localStorage.getItem(debugUIStorageKey) === "1";
+}
+
+function syncDebugUI() {
+  document.documentElement.dataset.debugUi = debugUIEnabled() ? "on" : "off";
+}
+
+function toggleDebugUI() {
+  if (isLoopbackHost(window.location.hostname)) {
+    syncDebugUI();
+    return;
+  }
+  if (debugUIEnabled()) {
+    window.localStorage.removeItem(debugUIStorageKey);
+    statusNode.textContent = "debug tools hidden";
+  } else {
+    window.localStorage.setItem(debugUIStorageKey, "1");
+    statusNode.textContent = "debug tools visible";
+  }
+  syncDebugUI();
 }
 
 function syncAuthUI() {
@@ -203,9 +236,9 @@ async function loadHistory() {
           <a href="${item.review_url}" target="_blank" rel="noreferrer">review</a>
           <span> · </span>
           <a href="${item.final_url}" target="_blank" rel="noreferrer">final</a>
-          <span> · </span>
-          <a href="${item.record_url}" target="_blank" rel="noreferrer">record</a>
-          ${item.debug_url ? `<span> · </span><a href="${item.debug_url}" target="_blank" rel="noreferrer">debug</a>` : ""}
+          <span class="debug-only"> · </span>
+          <a class="debug-only" href="${item.record_url}" target="_blank" rel="noreferrer">record</a>
+          ${item.debug_url ? `<span class="debug-only"> · </span><a class="debug-only" href="${item.debug_url}" target="_blank" rel="noreferrer">debug</a>` : ""}
         </p>
       </div>
     </article>
@@ -275,9 +308,9 @@ async function renderImage() {
     <a href="${payload.review_url}" target="_blank" rel="noreferrer">review page</a>
     <span> · </span>
     <a href="${payload.final_url}" target="_blank" rel="noreferrer">final png</a>
-    <span> · </span>
-    <a href="${payload.record_url}" target="_blank" rel="noreferrer">record json</a>
-    ${payload.debug_url ? `<span> · </span><a href="${payload.debug_url}" target="_blank" rel="noreferrer">debug sheet</a>` : ""}
+    <span class="debug-only"> · </span>
+    <a class="debug-only" href="${payload.record_url}" target="_blank" rel="noreferrer">record json</a>
+    ${payload.debug_url ? `<span class="debug-only"> · </span><a class="debug-only" href="${payload.debug_url}" target="_blank" rel="noreferrer">debug sheet</a>` : ""}
   `;
   statusNode.textContent = "render complete";
   renderInFlight = false;
@@ -316,10 +349,22 @@ refreshHistoryButton.addEventListener("click", () => {
   void loadHistory();
 });
 
+document.addEventListener("keydown", (event) => {
+  if (event.repeat || event.metaKey || event.ctrlKey || !event.altKey || !event.shiftKey) {
+    return;
+  }
+  if (event.key.toLowerCase() !== "d") {
+    return;
+  }
+  event.preventDefault();
+  toggleDebugUI();
+});
+
 paletteModeSelect.addEventListener("change", syncControls);
 modeSelect.addEventListener("change", syncControls);
 
 void (async () => {
+  syncDebugUI();
   const bootstrapped = await bootstrapSessionFromURL();
   if (!bootstrapped) {
     await loadSession();

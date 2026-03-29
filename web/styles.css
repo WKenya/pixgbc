@@ -23,6 +23,10 @@ body {
     linear-gradient(180deg, #efe7d5 0%, var(--bg) 100%);
 }
 
+html[data-debug-ui="off"] .debug-only {
+  display: none !important;
+}
+
 .shell {
   width: min(1040px, calc(100vw - 32px));
   margin: 0 auto;

@@ -67,6 +67,8 @@ Checked-in sample inputs live in [samples/README.md](/Users/wesleykenyon/code/pi
 
 `serve` exposes browser controls for hosted sign-in, mode, preset vs extract, width/height, crop, dither, alpha mode, background color, brightness/contrast/gamma, preview scale, strict-mode tile params, and debug output.
 
+Raw/debug affordances in the browser UI are now hidden by default on non-loopback hosts. Loopback shows them automatically; hosted/public sessions can toggle them with `Alt+Shift+D`.
+
 In `cgb-bg`:
 
 - `palette-mode preset` locks strict-mode banks back to the selected preset palette

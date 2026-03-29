@@ -67,6 +67,7 @@ var reviewTemplate = template.Must(template.New("review").Parse(`<!doctype html>
         margin-bottom: 20px;
         box-shadow: 10px 10px 0 rgba(40, 51, 31, .08);
       }
+      html[data-debug-ui="off"] .debug-only { display: none !important; }
       h1, h2, h3, p { margin-top: 0; }
       h1 { margin-bottom: 10px; }
       h2 { margin-bottom: 14px; }
@@ -182,7 +183,7 @@ var reviewTemplate = template.Must(template.New("review").Parse(`<!doctype html>
           <div class="stat"><span>Palette Banks</span><strong>{{len .Record.PaletteBanks}}</strong></div>
           <div class="stat"><span>Tiles</span><strong>{{len .Record.TileAssignments}}</strong></div>
         </div>
-        <p class="links"><a href="{{.PreviewURL}}">preview.png</a> <a href="{{.FinalURL}}">final.png</a> <a href="{{.RecordURL}}">record.json</a>{{if .DebugURL}} <a href="{{.DebugURL}}">debug.png</a>{{end}}</p>
+        <p class="links"><a href="{{.PreviewURL}}">preview.png</a> <a href="{{.FinalURL}}">final.png</a> <a class="debug-only" href="{{.RecordURL}}">record.json</a>{{if .DebugURL}} <a class="debug-only" href="{{.DebugURL}}">debug.png</a>{{end}}</p>
       </section>
 
       <section class="panel images">
@@ -197,7 +198,7 @@ var reviewTemplate = template.Must(template.New("review").Parse(`<!doctype html>
       </section>
 
       {{if .DebugURL}}
-      <section class="panel debug">
+      <section class="panel debug debug-only">
         <h2>Debug Sheet</h2>
         <img src="{{.DebugURL}}" alt="Debug sheet">
       </section>
@@ -220,7 +221,7 @@ var reviewTemplate = template.Must(template.New("review").Parse(`<!doctype html>
             {{end}}
           </dl>
         </div>
-        <div>
+        <div class="debug-only">
           <h2>Fingerprints</h2>
           <dl class="kv">
             {{range .FingerprintRows}}
@@ -282,17 +283,58 @@ var reviewTemplate = template.Must(template.New("review").Parse(`<!doctype html>
       {{end}}
 
       {{if .MetadataJSON}}
-      <section class="panel">
+      <section class="panel debug-only">
         <h2>Metadata</h2>
         <pre>{{.MetadataJSON}}</pre>
       </section>
       {{end}}
 
-      <section class="panel">
+      <section class="panel debug-only">
         <h2>Record JSON</h2>
         <pre>{{.RecordJSON}}</pre>
       </section>
     </main>
+    <script>
+      (function () {
+        const storageKey = "pixgbc.debug-ui";
+        const host = window.location.hostname;
+        const loopback =
+          host === "localhost" ||
+          host === "127.0.0.1" ||
+          host === "::1" ||
+          host === "[::1]" ||
+          host === "0.0.0.0" ||
+          host.endsWith(".localhost");
+
+        function enabled() {
+          return loopback || window.localStorage.getItem(storageKey) === "1";
+        }
+
+        function sync() {
+          document.documentElement.dataset.debugUi = enabled() ? "on" : "off";
+        }
+
+        document.addEventListener("keydown", function (event) {
+          if (event.repeat || event.metaKey || event.ctrlKey || !event.altKey || !event.shiftKey) {
+            return;
+          }
+          if (event.key.toLowerCase() !== "d") {
+            return;
+          }
+          event.preventDefault();
+          if (!loopback) {
+            if (enabled()) {
+              window.localStorage.removeItem(storageKey);
+            } else {
+              window.localStorage.setItem(storageKey, "1");
+            }
+          }
+          sync();
+        });
+
+        sync();
+      })();
+    </script>
   </body>
 </html>`))
 

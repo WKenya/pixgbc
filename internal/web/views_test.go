@@ -77,6 +77,8 @@ func TestRenderReviewPageIncludesPaletteAndDistribution(t *testing.T) {
 		"input-hash",
 		"debug.png",
 		"tile_grid_width",
+		`html[data-debug-ui="off"] .debug-only`,
+		`localStorage.getItem(storageKey) === "1"`,
 	} {
 		if !strings.Contains(body, snippet) {
 			t.Fatalf("review page missing %q", snippet)
