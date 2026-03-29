@@ -12,11 +12,24 @@ import (
 )
 
 func SaveResult(ctx context.Context, store Store, inputBytes []byte, cfg core.Config, result *core.Result) (ReviewRecord, error) {
+	decoded, err := ioimg.DecodeImage(bytes.NewReader(inputBytes), ioimg.DefaultLimits())
+	if err != nil {
+		return ReviewRecord{}, err
+	}
+
+	sourcePNG, err := export.PNGBytes(decoded.Image)
+	if err != nil {
+		return ReviewRecord{}, err
+	}
 	finalPNG, err := export.PNGBytes(result.FinalImage)
 	if err != nil {
 		return ReviewRecord{}, err
 	}
 	previewPNG, err := export.PNGBytes(result.PreviewImage)
+	if err != nil {
+		return ReviewRecord{}, err
+	}
+	comparePNG, err := export.CompareCardPNG(decoded.Image, result)
 	if err != nil {
 		return ReviewRecord{}, err
 	}
@@ -38,14 +51,12 @@ func SaveResult(ctx context.Context, store Store, inputBytes []byte, cfg core.Co
 	}
 
 	files := map[string][]byte{
+		record.Artifacts.SourcePNG:  sourcePNG,
 		record.Artifacts.FinalPNG:   finalPNG,
 		record.Artifacts.PreviewPNG: previewPNG,
+		record.Artifacts.ComparePNG: comparePNG,
 	}
 	if cfg.EmitDebug {
-		decoded, err := ioimg.DecodeImage(bytes.NewReader(inputBytes), ioimg.DefaultLimits())
-		if err != nil {
-			return ReviewRecord{}, err
-		}
 		debugPNG, err := export.DebugSheetPNG(decoded.Image, result)
 		if err != nil {
 			return ReviewRecord{}, err

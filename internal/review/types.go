@@ -10,15 +10,19 @@ import (
 
 const (
 	CurrentSchemaVersion  = "pixgbc.review/v1"
+	DefaultSourcePNGName  = "source.png"
 	DefaultFinalPNGName   = "final.png"
 	DefaultPreviewPNGName = "preview.png"
+	DefaultComparePNGName = "compare.png"
 	DefaultDebugPNGName   = "debug.png"
 	DefaultMetaJSONName   = "meta.json"
 )
 
 type ArtifactManifest struct {
+	SourcePNG  string `json:"source_png"`
 	FinalPNG   string `json:"final_png"`
 	PreviewPNG string `json:"preview_png"`
+	ComparePNG string `json:"compare_png"`
 	DebugPNG   string `json:"debug_png,omitempty"`
 	MetaJSON   string `json:"meta_json"`
 }

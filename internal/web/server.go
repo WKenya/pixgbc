@@ -177,8 +177,10 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 		ID:         record.ID,
 		ReviewURL:  s.reviewURL(record.ID, s.requestTokenQuery(r)),
 		RecordURL:  s.recordURL(record.ID, s.requestTokenQuery(r)),
+		SourceURL:  s.artifactURL(record.ID, record.Artifacts.SourcePNG, s.requestTokenQuery(r)),
 		PreviewURL: s.artifactURL(record.ID, record.Artifacts.PreviewPNG, s.requestTokenQuery(r)),
 		FinalURL:   s.artifactURL(record.ID, record.Artifacts.FinalPNG, s.requestTokenQuery(r)),
+		CompareURL: s.artifactURL(record.ID, record.Artifacts.ComparePNG, s.requestTokenQuery(r)),
 	}
 	if record.Artifacts.DebugPNG != "" {
 		response.DebugURL = s.artifactURL(record.ID, record.Artifacts.DebugPNG, s.requestTokenQuery(r))
@@ -219,10 +221,12 @@ func (s *Server) handleListRenders(w http.ResponseWriter, r *http.Request) {
 			Mode:       record.Mode,
 			Width:      record.OutputWidth,
 			Height:     record.OutputHeight,
+			SourceURL:  s.artifactURL(record.ID, record.Artifacts.SourcePNG, token),
 			PreviewURL: s.artifactURL(record.ID, record.Artifacts.PreviewPNG, token),
 			ReviewURL:  s.reviewURL(record.ID, token),
 			RecordURL:  s.recordURL(record.ID, token),
 			FinalURL:   s.artifactURL(record.ID, record.Artifacts.FinalPNG, token),
+			CompareURL: s.artifactURL(record.ID, record.Artifacts.ComparePNG, token),
 		}
 		if record.Artifacts.DebugPNG != "" {
 			item.DebugURL = s.artifactURL(record.ID, record.Artifacts.DebugPNG, token)
@@ -294,8 +298,10 @@ func (s *Server) handleReviewPage(w http.ResponseWriter, r *http.Request) {
 	page, err := renderReviewPage(
 		record,
 		s.recordURL(record.ID, s.requestTokenQuery(r)),
+		s.artifactURL(record.ID, record.Artifacts.SourcePNG, s.requestTokenQuery(r)),
 		s.artifactURL(record.ID, record.Artifacts.PreviewPNG, s.requestTokenQuery(r)),
 		s.artifactURL(record.ID, record.Artifacts.FinalPNG, s.requestTokenQuery(r)),
+		s.artifactURL(record.ID, record.Artifacts.ComparePNG, s.requestTokenQuery(r)),
 		debugURL,
 	)
 	if err != nil {

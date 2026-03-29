@@ -41,7 +41,7 @@ func TestNewRecordMaterializesStableSchemaAndDefaults(t *testing.T) {
 	if record.SchemaVersion != CurrentSchemaVersion {
 		t.Fatalf("SchemaVersion = %q, want %q", record.SchemaVersion, CurrentSchemaVersion)
 	}
-	if record.Artifacts.FinalPNG != DefaultFinalPNGName || record.Artifacts.PreviewPNG != DefaultPreviewPNGName || record.Artifacts.MetaJSON != DefaultMetaJSONName {
+	if record.Artifacts.SourcePNG != DefaultSourcePNGName || record.Artifacts.FinalPNG != DefaultFinalPNGName || record.Artifacts.PreviewPNG != DefaultPreviewPNGName || record.Artifacts.ComparePNG != DefaultComparePNGName || record.Artifacts.MetaJSON != DefaultMetaJSONName {
 		t.Fatalf("Artifacts = %#v, want default names", record.Artifacts)
 	}
 	if record.Config.PreviewScale != core.DefaultConfig().PreviewScale {
@@ -81,5 +81,8 @@ func TestTempStoreGetBackfillsSchemaVersion(t *testing.T) {
 	}
 	if got.Artifacts.MetaJSON != DefaultMetaJSONName {
 		t.Fatalf("Artifacts.MetaJSON = %q, want %q", got.Artifacts.MetaJSON, DefaultMetaJSONName)
+	}
+	if got.Artifacts.SourcePNG != DefaultSourcePNGName || got.Artifacts.ComparePNG != DefaultComparePNGName {
+		t.Fatalf("Artifacts source/compare = %#v, want default names", got.Artifacts)
 	}
 }

@@ -25,6 +25,9 @@ const statusNode = document.querySelector("#status");
 const previewImage = document.querySelector("#preview");
 const consoleScreen = document.querySelector(".console-screen");
 const linksNode = document.querySelector("#links");
+const compareSourceImage = document.querySelector("#compare-source");
+const comparePixelImage = document.querySelector("#compare-pixel");
+const compareLinksNode = document.querySelector("#compare-links");
 const guideTitleNode = document.querySelector("#guide-title");
 const guideBodyNode = document.querySelector("#guide-body");
 const refreshHistoryButton = document.querySelector("#refresh-history");
@@ -115,6 +118,12 @@ function syncAuthUI() {
 
 function syncPreviewState() {
   consoleScreen.classList.toggle("has-image", Boolean(previewImage.getAttribute("src")));
+}
+
+function clearCompareState() {
+  compareSourceImage.removeAttribute("src");
+  comparePixelImage.removeAttribute("src");
+  compareLinksNode.innerHTML = "";
 }
 
 function syncGuideNote() {
@@ -213,6 +222,7 @@ async function logoutSession() {
   previewImage.removeAttribute("src");
   syncPreviewState();
   linksNode.innerHTML = "";
+  clearCompareState();
   historyListNode.innerHTML = "<p class=\"status\">sign in to view render history</p>";
   statusNode.textContent = "session cleared";
   syncAuthUI();
@@ -286,6 +296,8 @@ async function loadHistory() {
           <a href="${item.review_url}" target="_blank" rel="noreferrer">review</a>
           <span> · </span>
           <a href="${item.final_url}" target="_blank" rel="noreferrer">final</a>
+          <span> · </span>
+          <a href="${item.compare_url}" target="_blank" rel="noreferrer">compare</a>
           <span class="debug-only"> · </span>
           <a class="debug-only" href="${item.record_url}" target="_blank" rel="noreferrer">record</a>
           ${item.debug_url ? `<span class="debug-only"> · </span><a class="debug-only" href="${item.debug_url}" target="_blank" rel="noreferrer">debug</a>` : ""}
@@ -359,9 +371,18 @@ async function renderImage() {
     <a href="${payload.review_url}" target="_blank" rel="noreferrer">review page</a>
     <span> · </span>
     <a href="${payload.final_url}" target="_blank" rel="noreferrer">final png</a>
+    <span> · </span>
+    <a href="${payload.compare_url}" target="_blank" rel="noreferrer">compare card</a>
     <span class="debug-only"> · </span>
     <a class="debug-only" href="${payload.record_url}" target="_blank" rel="noreferrer">record json</a>
     ${payload.debug_url ? `<span class="debug-only"> · </span><a class="debug-only" href="${payload.debug_url}" target="_blank" rel="noreferrer">debug sheet</a>` : ""}
+  `;
+  compareSourceImage.src = payload.source_url;
+  comparePixelImage.src = payload.preview_url;
+  compareLinksNode.innerHTML = `
+    <a href="${payload.source_url}" target="_blank" rel="noreferrer">original</a>
+    <span> · </span>
+    <a href="${payload.compare_url}" target="_blank" rel="noreferrer">compare card</a>
   `;
   statusNode.textContent = "render complete";
   renderInFlight = false;
@@ -417,6 +438,7 @@ modeSelect.addEventListener("change", syncControls);
 void (async () => {
   syncDebugUI();
   syncPreviewState();
+  clearCompareState();
   startGuideRotation();
   const bootstrapped = await bootstrapSessionFromURL();
   if (!bootstrapped) {

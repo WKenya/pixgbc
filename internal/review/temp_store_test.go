@@ -33,8 +33,10 @@ func TestTempStoreSaveGetAndOpenArtifact(t *testing.T) {
 		OutputWidth:  160,
 		OutputHeight: 144,
 		Artifacts: ArtifactManifest{
+			SourcePNG:  DefaultSourcePNGName,
 			FinalPNG:   DefaultFinalPNGName,
 			PreviewPNG: DefaultPreviewPNGName,
+			ComparePNG: DefaultComparePNGName,
 			MetaJSON:   DefaultMetaJSONName,
 		},
 		Fingerprints: Fingerprints{
@@ -45,8 +47,10 @@ func TestTempStoreSaveGetAndOpenArtifact(t *testing.T) {
 	}
 
 	files := map[string][]byte{
+		DefaultSourcePNGName:  []byte("source-bytes"),
 		DefaultFinalPNGName:   []byte("final-bytes"),
 		DefaultPreviewPNGName: []byte("preview-bytes"),
+		DefaultComparePNGName: []byte("compare-bytes"),
 	}
 
 	if err := store.Save(context.Background(), record, files); err != nil {

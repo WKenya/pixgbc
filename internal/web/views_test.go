@@ -61,7 +61,7 @@ func TestRenderReviewPageIncludesPaletteAndDistribution(t *testing.T) {
 			"tile_grid_height":   2,
 			"palette_bank_count": 2,
 		},
-	}, "/api/renders/rnd_123", "/preview.png", "/final.png", "/debug.png")
+	}, "/api/renders/rnd_123", "/source.png", "/preview.png", "/final.png", "/compare.png", "/debug.png")
 	if err != nil {
 		t.Fatalf("renderReviewPage() error = %v", err)
 	}
@@ -71,6 +71,12 @@ func TestRenderReviewPageIncludesPaletteAndDistribution(t *testing.T) {
 		"Global Palette",
 		"Palette Banks",
 		"Tile Bank Distribution",
+		"Scaled Preview (6x",
+		"Final Native Output (160x144)",
+		"Preview is a 6x nearest-neighbor upscale",
+		"Original Source",
+		"Compare Card",
+		"compare.png",
 		"Bank 0",
 		"2 tiles",
 		"#112233",

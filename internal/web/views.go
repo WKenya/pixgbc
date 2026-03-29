@@ -29,9 +29,13 @@ type reviewBankSummary struct {
 type reviewPageData struct {
 	Record          review.ReviewRecord
 	RecordURL       string
+	SourceURL       string
 	PreviewURL      string
 	FinalURL        string
+	CompareURL      string
 	DebugURL        string
+	PreviewHeading  string
+	FinalHeading    string
 	RecordJSON      string
 	MetadataJSON    string
 	SourceRows      []reviewRow
@@ -176,25 +180,34 @@ var reviewTemplate = template.Must(template.New("review").Parse(`<!doctype html>
     <main>
       <section class="panel">
         <h1>Render {{.Record.ID}}</h1>
-        <p class="lede">Mode {{.Record.Mode}}. {{.Record.OutputWidth}}x{{.Record.OutputHeight}} output. Created {{.Record.CreatedAt.Format "2006-01-02 15:04:05 MST"}}.</p>
+        <p class="lede">Mode {{.Record.Mode}}. Native output {{.Record.OutputWidth}}x{{.Record.OutputHeight}}. Preview is a {{.Record.Config.PreviewScale}}x nearest-neighbor upscale for easier inspection. Created {{.Record.CreatedAt.Format "2006-01-02 15:04:05 MST"}}.</p>
         <div class="quick">
           <div class="stat"><span>Source</span><strong>{{.Record.Source.Width}}x{{.Record.Source.Height}}</strong></div>
           <div class="stat"><span>Format</span><strong>{{.Record.Source.Format}}</strong></div>
           <div class="stat"><span>Palette Banks</span><strong>{{len .Record.PaletteBanks}}</strong></div>
           <div class="stat"><span>Tiles</span><strong>{{len .Record.TileAssignments}}</strong></div>
         </div>
-        <p class="links"><a href="{{.PreviewURL}}">preview.png</a> <a href="{{.FinalURL}}">final.png</a> <a class="debug-only" href="{{.RecordURL}}">record.json</a>{{if .DebugURL}} <a class="debug-only" href="{{.DebugURL}}">debug.png</a>{{end}}</p>
+        <p class="links"><a href="{{.SourceURL}}">source.png</a> <a href="{{.PreviewURL}}">preview.png</a> <a href="{{.FinalURL}}">final.png</a> <a href="{{.CompareURL}}">compare.png</a> <a class="debug-only" href="{{.RecordURL}}">record.json</a>{{if .DebugURL}} <a class="debug-only" href="{{.DebugURL}}">debug.png</a>{{end}}</p>
       </section>
 
       <section class="panel images">
         <div>
-          <h2>Preview</h2>
+          <h2>Original Source</h2>
+          <img src="{{.SourceURL}}" alt="Original source image">
+        </div>
+        <div>
+          <h2>{{.PreviewHeading}}</h2>
           <img src="{{.PreviewURL}}" alt="Preview image">
         </div>
         <div>
-          <h2>Final</h2>
+          <h2>{{.FinalHeading}}</h2>
           <img src="{{.FinalURL}}" alt="Final image">
         </div>
+      </section>
+
+      <section class="panel">
+        <h2>Compare Card</h2>
+        <img src="{{.CompareURL}}" alt="Original versus pixel output comparison">
       </section>
 
       {{if .DebugURL}}
@@ -338,7 +351,7 @@ var reviewTemplate = template.Must(template.New("review").Parse(`<!doctype html>
   </body>
 </html>`))
 
-func renderReviewPage(record review.ReviewRecord, recordURL, previewURL, finalURL, debugURL string) ([]byte, error) {
+func renderReviewPage(record review.ReviewRecord, recordURL, sourceURL, previewURL, finalURL, compareURL, debugURL string) ([]byte, error) {
 	jsonBytes, err := json.MarshalIndent(record, "", "  ")
 	if err != nil {
 		return nil, err
@@ -357,9 +370,13 @@ func renderReviewPage(record review.ReviewRecord, recordURL, previewURL, finalUR
 	if err := reviewTemplate.Execute(&buf, reviewPageData{
 		Record:          record,
 		RecordURL:       recordURL,
+		SourceURL:       sourceURL,
 		PreviewURL:      previewURL,
 		FinalURL:        finalURL,
+		CompareURL:      compareURL,
 		DebugURL:        debugURL,
+		PreviewHeading:  fmt.Sprintf("Scaled Preview (%dx · %dx%d)", record.Config.PreviewScale, record.OutputWidth*record.Config.PreviewScale, record.OutputHeight*record.Config.PreviewScale),
+		FinalHeading:    fmt.Sprintf("Final Native Output (%dx%d)", record.OutputWidth, record.OutputHeight),
 		RecordJSON:      string(jsonBytes),
 		MetadataJSON:    metadataJSON,
 		SourceRows:      buildSourceRows(record),

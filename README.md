@@ -100,6 +100,8 @@ Hosted hardening knobs:
 - `GET /api/renders/{id}/artifacts/{name}`
 - `GET /renders/{id}`
 
+Review bundles now also persist `source.png` and `compare.png`, so the web UI and docs pipeline can show original-vs-pixel comparisons without recomputing them.
+
 The review page now renders palettes, config, hashes, and strict-mode tile-bank distribution directly in HTML in addition to raw JSON.
 
 Review bundles now carry an explicit stable schema marker: `schema_version: "pixgbc.review/v1"`.
@@ -119,6 +121,8 @@ go run ./cmd/pixgbc convert samples/gradient-landscape.png -o /tmp/gradient.png 
 
 ![Relaxed render](docs/assets/gradient-relaxed.png)
 
+![Relaxed compare](docs/assets/gradient-compare.png)
+
 Alpha flattening with explicit background:
 
 ```sh
@@ -127,6 +131,8 @@ go run ./cmd/pixgbc convert samples/portrait-alpha.png -o /tmp/portrait.png --pr
 
 ![Alpha flatten render](docs/assets/portrait-alpha-relaxed.png)
 
+![Alpha flatten compare](docs/assets/portrait-alpha-compare.png)
+
 Strict `cgb-bg` render with debug sheet:
 
 ```sh
@@ -134,6 +140,8 @@ go run ./cmd/pixgbc convert samples/tile-banks.png -o /tmp/tile-banks.png --prev
 ```
 
 ![Strict render](docs/assets/tile-banks-cgb.png)
+
+![Strict compare](docs/assets/tile-banks-compare.png)
 
 ![Strict debug sheet](docs/assets/tile-banks-debug.png)
 

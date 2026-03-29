@@ -45,11 +45,17 @@ func NewRecord(id string, createdAt time.Time, cfg core.Config, result *core.Res
 }
 
 func fillArtifactDefaults(artifacts ArtifactManifest) ArtifactManifest {
+	if artifacts.SourcePNG == "" {
+		artifacts.SourcePNG = DefaultSourcePNGName
+	}
 	if artifacts.FinalPNG == "" {
 		artifacts.FinalPNG = DefaultFinalPNGName
 	}
 	if artifacts.PreviewPNG == "" {
 		artifacts.PreviewPNG = DefaultPreviewPNGName
+	}
+	if artifacts.ComparePNG == "" {
+		artifacts.ComparePNG = DefaultComparePNGName
 	}
 	if artifacts.MetaJSON == "" {
 		artifacts.MetaJSON = DefaultMetaJSONName

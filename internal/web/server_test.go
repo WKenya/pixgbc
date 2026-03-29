@@ -59,7 +59,7 @@ func TestRenderAndFetchReview(t *testing.T) {
 	if renderResponse.ID == "" {
 		t.Fatal("render response id empty")
 	}
-	if renderResponse.PreviewURL == "" || renderResponse.RecordURL == "" || renderResponse.ReviewURL == "" {
+	if renderResponse.SourceURL == "" || renderResponse.CompareURL == "" || renderResponse.PreviewURL == "" || renderResponse.RecordURL == "" || renderResponse.ReviewURL == "" {
 		t.Fatalf("render response missing urls: %#v", renderResponse)
 	}
 
@@ -88,6 +88,16 @@ func TestRenderAndFetchReview(t *testing.T) {
 	}
 	if got := previewRecorder.Header().Get("Content-Type"); got != "image/png" {
 		t.Fatalf("preview content-type = %q, want image/png", got)
+	}
+
+	compareRequest := httptest.NewRequest(http.MethodGet, renderResponse.CompareURL, nil)
+	compareRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(compareRecorder, compareRequest)
+	if compareRecorder.Code != http.StatusOK {
+		t.Fatalf("GET %s status = %d", renderResponse.CompareURL, compareRecorder.Code)
+	}
+	if got := compareRecorder.Header().Get("Content-Type"); got != "image/png" {
+		t.Fatalf("compare content-type = %q, want image/png", got)
 	}
 }
 
@@ -305,7 +315,7 @@ func TestListRendersReturnsNewestFirst(t *testing.T) {
 	if items[0].ID == items[1].ID {
 		t.Fatalf("items ids repeated: %#v", items)
 	}
-	if items[0].PreviewURL == "" || items[0].ReviewURL == "" {
+	if items[0].SourceURL == "" || items[0].CompareURL == "" || items[0].PreviewURL == "" || items[0].ReviewURL == "" {
 		t.Fatalf("history item missing urls: %#v", items[0])
 	}
 }
@@ -492,7 +502,7 @@ func TestRenderResponseURLsPreserveTokenQuery(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 		t.Fatalf("json.Unmarshal() error = %v", err)
 	}
-	for _, value := range []string{response.ReviewURL, response.RecordURL, response.PreviewURL, response.FinalURL} {
+	for _, value := range []string{response.ReviewURL, response.RecordURL, response.SourceURL, response.PreviewURL, response.FinalURL, response.CompareURL} {
 		if !strings.Contains(value, "token=secret-token") {
 			t.Fatalf("url %q missing propagated token", value)
 		}
