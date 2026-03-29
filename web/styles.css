@@ -396,7 +396,8 @@ button.secondary {
 .console-screen {
   position: relative;
   overflow: hidden;
-  min-height: 280px;
+  aspect-ratio: 10 / 9;
+  min-height: 0;
   display: grid;
   place-items: center;
   border: 3px solid #192014;
@@ -415,6 +416,11 @@ button.secondary {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: rgba(35, 46, 25, 0.56);
+}
+
+.console-screen.has-image {
+  aspect-ratio: auto;
+  min-height: 280px;
 }
 
 .console-screen.has-image::before {
@@ -681,7 +687,7 @@ button.secondary {
   }
 
   .workbench {
-    grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+    grid-template-columns: minmax(460px, 540px) minmax(0, 1fr);
     align-items: start;
   }
 
@@ -700,13 +706,13 @@ button.secondary {
   }
 
   .control-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 1200px) {
   .control-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .field-wide {
