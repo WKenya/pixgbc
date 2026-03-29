@@ -216,6 +216,12 @@ h2 {
   color: var(--olive);
 }
 
+.guide-title {
+  margin: 0 0 8px;
+  font-family: "Iowan Old Style", "Book Antiqua", Georgia, serif;
+  font-size: 1.2rem;
+}
+
 .workbench {
   display: grid;
   gap: 20px;
@@ -252,16 +258,17 @@ h2 {
 .control-grid,
 .control-foot {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .control-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
 }
 
 .field {
   display: grid;
-  gap: 7px;
+  gap: 5px;
 }
 
 .field-wide {
@@ -279,7 +286,7 @@ input,
 select,
 button {
   width: 100%;
-  padding: 13px 14px;
+  padding: 10px 12px;
   border: 2px solid var(--shell-edge);
   border-radius: 0;
   font-size: 0.95rem;
@@ -346,6 +353,12 @@ button.secondary {
 .control-foot {
   align-items: center;
   margin-top: 18px;
+  position: sticky;
+  bottom: -2px;
+  z-index: 4;
+  padding: 12px 0 0;
+  background:
+    linear-gradient(180deg, rgba(235, 225, 200, 0), rgba(235, 225, 200, 0.96) 30%, rgba(235, 225, 200, 1) 100%);
 }
 
 .status {
@@ -685,11 +698,15 @@ button.secondary {
     grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: end;
   }
+
+  .control-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 1200px) {
   .control-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .field-wide {

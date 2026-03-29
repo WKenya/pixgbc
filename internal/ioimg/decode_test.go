@@ -6,6 +6,8 @@ import (
 	"image/color"
 	"image/png"
 	"testing"
+
+	"github.com/WKenya/pixgbc/internal/core"
 )
 
 func TestDecodeImageReportsFormatAndAlpha(t *testing.T) {
@@ -49,5 +51,18 @@ func TestDecodeConfigAndValidateRejectsOversize(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("DecodeConfigAndValidate() error = nil, want error")
+	}
+}
+
+func TestDefaultLimitsAcceptIPhoneResolution(t *testing.T) {
+	limits := DefaultLimits()
+	meta := core.SourceMeta{
+		Width:    5712,
+		Height:   4284,
+		FileSize: 12 << 20,
+	}
+
+	if err := validateMeta(meta, limits); err != nil {
+		t.Fatalf("validateMeta() error = %v, want nil", err)
 	}
 }

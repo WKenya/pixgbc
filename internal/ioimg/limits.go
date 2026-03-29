@@ -9,9 +9,9 @@ type Limits struct {
 
 func DefaultLimits() Limits {
 	return Limits{
-		MaxWidth:     4096,
-		MaxHeight:    4096,
-		MaxPixels:    4096 * 4096,
+		MaxWidth:     6144,
+		MaxHeight:    6144,
+		MaxPixels:    28 << 20,
 		MaxFileBytes: 32 << 20,
 	}
 }

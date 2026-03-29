@@ -25,15 +25,41 @@ const statusNode = document.querySelector("#status");
 const previewImage = document.querySelector("#preview");
 const consoleScreen = document.querySelector(".console-screen");
 const linksNode = document.querySelector("#links");
+const guideTitleNode = document.querySelector("#guide-title");
+const guideBodyNode = document.querySelector("#guide-body");
 const refreshHistoryButton = document.querySelector("#refresh-history");
 const historyListNode = document.querySelector("#history-list");
 const debugUIStorageKey = "pixgbc.debug-ui";
+
+const guideNotes = [
+  {
+    title: "Relaxed for nicer image tone",
+    body: "Start in relaxed mode when you want the most forgiving output from a photo or detailed illustration.",
+  },
+  {
+    title: "Use cgb-bg for cartridge rules",
+    body: "Switch to cgb-bg when you want tile-bank limits, shared palettes, and a stricter handheld look.",
+  },
+  {
+    title: "Raise contrast for muddy photos",
+    body: "If the preview looks flat after resize, try a small contrast bump before pushing brightness.",
+  },
+  {
+    title: "Lower gamma for washed scenes",
+    body: "When highlights feel chalky, bring gamma down a bit so the palette holds midtone detail.",
+  },
+  {
+    title: "Extract for direct sampling",
+    body: "Use palette mode extract when the source already has a strong color identity you want to preserve.",
+  },
+];
 
 let renderInFlight = false;
 let sessionState = {
   auth_required: false,
   authenticated: true,
 };
+let guideIndex = 0;
 
 function authLocked() {
   return sessionState.auth_required && !sessionState.authenticated;
@@ -89,6 +115,23 @@ function syncAuthUI() {
 
 function syncPreviewState() {
   consoleScreen.classList.toggle("has-image", Boolean(previewImage.getAttribute("src")));
+}
+
+function syncGuideNote() {
+  if (!guideTitleNode || !guideBodyNode) {
+    return;
+  }
+  const note = guideNotes[guideIndex % guideNotes.length];
+  guideTitleNode.textContent = note.title;
+  guideBodyNode.textContent = note.body;
+}
+
+function startGuideRotation() {
+  syncGuideNote();
+  window.setInterval(() => {
+    guideIndex = (guideIndex + 1) % guideNotes.length;
+    syncGuideNote();
+  }, 4800);
 }
 
 async function apiFetch(url, init = {}) {
@@ -374,6 +417,7 @@ modeSelect.addEventListener("change", syncControls);
 void (async () => {
   syncDebugUI();
   syncPreviewState();
+  startGuideRotation();
   const bootstrapped = await bootstrapSessionFromURL();
   if (!bootstrapped) {
     await loadSession();
