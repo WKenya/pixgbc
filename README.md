@@ -2,7 +2,7 @@
 
 `pixgbc` converts images into Game Boy Color-inspired pixel art.
 
-Current implementation slice:
+Current features:
 
 - Go module + package scaffold
 - shared engine boundary
@@ -18,6 +18,24 @@ Current implementation slice:
 - benchmark coverage for render/palette hot paths
 - CLI integration coverage for help/convert/inspect/palette/review flows
 - tracked docs/example assets under `docs/assets/`
+
+## Photo Samples
+
+Default:
+
+![Default photo sample](.github/images/default.png)
+
+Gray default:
+
+![Gray default photo sample](.github/images/gray-default.png)
+
+Warm gamma + contrast:
+
+![Warm gamma and contrast photo sample](.github/images/warm-gamma-contrast.png)
+
+`cgb-bg` no dither:
+
+![CGB no dither photo sample](.github/images/cbg-no-dither.png)
 
 ## Commands
 
@@ -55,13 +73,13 @@ Run with a token:
 docker run --rm -p 8080:8080 pixgbc:local serve --listen 0.0.0.0:8080 --token demo-token --artifact-ttl 24h --session-ttl 12h --render-rate-per-minute 60 --max-concurrent-renders 2 --max-upload-bytes 10MB
 ```
 
-`convert --emit-review` writes `final.png`, `preview.png`, and `meta.json` into a review bundle directory and prints the bundle path.
+`convert --emit-review` writes `source.png`, `final.png`, `preview.png`, `compare.png`, and `meta.json` into a review bundle directory and prints the bundle path.
 
 `convert --mode cgb-bg` runs the stricter tile/palette-bank solver. Add `--debug` to persist a composed debug sheet into the review bundle.
 
 `convert` also accepts `-o`, positional input, `--scale`, `--alpha`, `--bg`, `--brightness`, `--contrast`, `--gamma`, `--tile-size`, `--colors-per-tile`, and `--max-palettes`.
 
-Checked-in sample inputs live in [samples/README.md](/Users/wesleykenyon/code/pixgbc/samples/README.md). `make sample-outputs` rebuilds the example PNG outputs and a strict-mode review bundle under `samples/`.
+Checked-in sample inputs live in [samples/README.md](samples/README.md). `make sample-outputs` rebuilds the example PNG outputs and a strict-mode review bundle under `samples/`.
 
 `inspect --json` now reports dominant colors, estimated strict-mode fit, and recommended mode/palette preset.
 
@@ -95,6 +113,8 @@ Hosted hardening knobs:
 - `GET /api/session`
 - `POST /api/session/login`
 - `POST /api/session/logout`
+- `GET /api/palettes`
+- `GET /api/renders`
 - `POST /api/render`
 - `GET /api/renders/{id}`
 - `GET /api/renders/{id}/artifacts/{name}`
@@ -108,8 +128,8 @@ Review bundles now carry an explicit stable schema marker: `schema_version: "pix
 
 Release/ops docs:
 
-- [docs/RELEASING.md](/Users/wesleykenyon/code/pixgbc/docs/RELEASING.md)
-- [docs/LAN-VERIFICATION.md](/Users/wesleykenyon/code/pixgbc/docs/LAN-VERIFICATION.md)
+- [docs/RELEASING.md](docs/RELEASING.md)
+- [docs/LAN-VERIFICATION.md](docs/LAN-VERIFICATION.md)
 
 ## Examples
 
