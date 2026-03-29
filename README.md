@@ -23,7 +23,7 @@ Current features:
 
 Default:
 
-![Default photo sample](.github/images/default.png)
+![Default photo sample](.github/images/default-pea-relaxed.png)
 
 Gray default:
 
@@ -31,7 +31,7 @@ Gray default:
 
 Warm gamma + contrast:
 
-![Warm gamma and contrast photo sample](.github/images/warm-gamma-contrast.png)
+![Warm gamma and contrast photo sample](.github/images/cbg-extract-8-color-12-palatte.png)
 
 `cgb-bg` no dither:
 

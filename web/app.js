@@ -63,6 +63,8 @@ let sessionState = {
   authenticated: true,
 };
 let guideIndex = 0;
+let renderStatusTimer = 0;
+let paletteModeTouched = false;
 
 function authLocked() {
   return sessionState.auth_required && !sessionState.authenticated;
@@ -118,6 +120,24 @@ function syncAuthUI() {
 
 function syncPreviewState() {
   consoleScreen.classList.toggle("has-image", Boolean(previewImage.getAttribute("src")));
+}
+
+function stopRenderStatusAnimation() {
+  if (renderStatusTimer) {
+    window.clearInterval(renderStatusTimer);
+    renderStatusTimer = 0;
+  }
+}
+
+function startRenderStatusAnimation() {
+  stopRenderStatusAnimation();
+  const frames = ["rendering.", "rendering..", "rendering..."];
+  let index = 0;
+  statusNode.textContent = frames[index];
+  renderStatusTimer = window.setInterval(() => {
+    index = (index + 1) % frames.length;
+    statusNode.textContent = frames[index];
+  }, 360);
 }
 
 function clearCompareState() {
@@ -321,7 +341,7 @@ async function renderImage() {
 
   renderInFlight = true;
   syncAuthUI();
-  statusNode.textContent = "rendering...";
+  startRenderStatusAnimation();
 
   const form = new FormData();
   form.set("file", file);
@@ -353,11 +373,13 @@ async function renderImage() {
   if (response.status === 401) {
     clearSessionUI("sign in to render");
     renderInFlight = false;
+    stopRenderStatusAnimation();
     syncAuthUI();
     statusNode.textContent = "sign in first";
     return;
   }
   if (!response.ok) {
+    stopRenderStatusAnimation();
     statusNode.textContent = await response.text();
     renderInFlight = false;
     syncAuthUI();
@@ -384,6 +406,7 @@ async function renderImage() {
     <span> · </span>
     <a href="${payload.compare_url}" target="_blank" rel="noreferrer">compare card</a>
   `;
+  stopRenderStatusAnimation();
   statusNode.textContent = "render complete";
   renderInFlight = false;
   syncAuthUI();
@@ -432,8 +455,16 @@ document.addEventListener("keydown", (event) => {
   toggleDebugUI();
 });
 
-paletteModeSelect.addEventListener("change", syncControls);
-modeSelect.addEventListener("change", syncControls);
+paletteModeSelect.addEventListener("change", () => {
+  paletteModeTouched = true;
+  syncControls();
+});
+modeSelect.addEventListener("change", () => {
+  if (!paletteModeTouched) {
+    paletteModeSelect.value = modeSelect.value === "cgb-bg" ? "extract" : "preset";
+  }
+  syncControls();
+});
 
 void (async () => {
   syncDebugUI();
