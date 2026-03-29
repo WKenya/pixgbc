@@ -92,7 +92,7 @@ In `cgb-bg`:
 - `palette-mode preset` locks strict-mode banks back to the selected preset palette
 - `palette-mode extract` uses direct sampled tile palettes from the image
 
-If `serve` binds beyond localhost, `--token` is required. Browser sign-in now exchanges that token for an `HttpOnly` session cookie; direct/manual access still works via `?token=...` or `Authorization: Bearer ...` when needed.
+If `serve` binds beyond localhost, `--token` is required by default. Use `--allow-open-access` to intentionally disable auth for a public/open demo. Browser sign-in exchanges the token for an `HttpOnly` session cookie; direct/manual access still works via `?token=...` or `Authorization: Bearer ...` when needed.
 
 Hosted hardening knobs:
 

@@ -21,6 +21,7 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 		addr                 string
 		listen               string
 		token                string
+		allowOpenAccess      bool
 		artifactTTLRaw       string
 		sessionTTLRaw        string
 		maxUploadRaw         string
@@ -30,6 +31,7 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 	fs.StringVar(&addr, "addr", "127.0.0.1:8080", "listen address")
 	fs.StringVar(&listen, "listen", "", "listen address")
 	fs.StringVar(&token, "token", "", "access token for non-localhost binds")
+	fs.BoolVar(&allowOpenAccess, "allow-open-access", false, "allow non-localhost binds without --token")
 	fs.StringVar(&artifactTTLRaw, "artifact-ttl", "168h", "artifact retention duration")
 	fs.StringVar(&sessionTTLRaw, "session-ttl", "12h", "browser session duration when token auth is enabled")
 	fs.StringVar(&maxUploadRaw, "max-upload-bytes", "", "max upload size, e.g. 10MB")
@@ -52,7 +54,7 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 		_, _ = fmt.Fprintf(a.stderr, "invalid --session-ttl: %v\n", err)
 		return 2
 	}
-	if !isLocalListen(addr) && token == "" {
+	if requiresAccessToken(addr, token, allowOpenAccess) {
 		_, _ = fmt.Fprintln(a.stderr, "--token required when binding beyond localhost")
 		return 2
 	}
@@ -122,6 +124,10 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 		}
 		return 0
 	}
+}
+
+func requiresAccessToken(addr, token string, allowOpenAccess bool) bool {
+	return !isLocalListen(addr) && token == "" && !allowOpenAccess
 }
 
 func isLocalListen(addr string) bool {

@@ -38,3 +38,24 @@ func TestParseByteSize(t *testing.T) {
 		t.Fatal("parseByteSize(0MB) error = nil, want error")
 	}
 }
+
+func TestRequiresAccessToken(t *testing.T) {
+	tests := []struct {
+		name            string
+		addr            string
+		token           string
+		allowOpenAccess bool
+		want            bool
+	}{
+		{name: "localhost no token", addr: "127.0.0.1:8080", want: false},
+		{name: "remote token", addr: "0.0.0.0:8080", token: "secret", want: false},
+		{name: "remote open access", addr: "0.0.0.0:8080", allowOpenAccess: true, want: false},
+		{name: "remote requires token", addr: "0.0.0.0:8080", want: true},
+	}
+
+	for _, test := range tests {
+		if got := requiresAccessToken(test.addr, test.token, test.allowOpenAccess); got != test.want {
+			t.Fatalf("%s: requiresAccessToken(%q, %q, %t) = %t, want %t", test.name, test.addr, test.token, test.allowOpenAccess, got, test.want)
+		}
+	}
+}
