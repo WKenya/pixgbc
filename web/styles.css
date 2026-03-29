@@ -179,6 +179,15 @@ h2 {
   color: var(--muted);
 }
 
+.hero-link {
+  margin: 14px 0 0;
+}
+
+.hero-link a {
+  color: var(--accent-dark);
+  text-decoration-thickness: 2px;
+}
+
 .hero-tags {
   display: flex;
   flex-wrap: wrap;
