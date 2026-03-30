@@ -13,6 +13,7 @@ func NewEngine() *Engine {
 }
 
 func (e *Engine) Run(ctx context.Context, src core.Source, cfg core.Config) (*core.Result, error) {
+	core.ReportProgress(ctx, "normalize", 8, "validating render setup")
 	normalized, err := core.NormalizeConfig(cfg)
 	if err != nil {
 		return nil, err

@@ -407,6 +407,48 @@ button.secondary {
     linear-gradient(180deg, rgba(235, 225, 200, 0), rgba(235, 225, 200, 0.96) 30%, rgba(235, 225, 200, 1) 100%);
 }
 
+.status-meter {
+  width: 100%;
+}
+
+.status-meter-track {
+  position: relative;
+  width: 100%;
+  height: 18px;
+  overflow: hidden;
+  border: 2px solid var(--shell-edge);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(77, 72, 57, 0.14) 0,
+      rgba(77, 72, 57, 0.14) 10px,
+      rgba(248, 241, 223, 0.88) 10px,
+      rgba(248, 241, 223, 0.88) 20px
+    );
+  box-shadow: 0 2px 0 rgba(255, 255, 255, 0.45) inset;
+}
+
+.status-meter-fill {
+  width: 0%;
+  height: 100%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #6e8b2a 0,
+      #6e8b2a 10px,
+      #99b64c 10px,
+      #99b64c 20px
+    );
+  box-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.18) inset,
+    2px 0 0 rgba(25, 32, 20, 0.3);
+  transition: width 180ms ease-out;
+}
+
+.status-meter-fill.loading {
+  animation: meter-scroll 700ms linear infinite;
+}
+
 .status {
   margin: 0;
   min-height: 1.2rem;
@@ -761,6 +803,15 @@ button.secondary {
   }
   to {
     transform: translateY(12px);
+  }
+}
+
+@keyframes meter-scroll {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 20px 0;
   }
 }
 

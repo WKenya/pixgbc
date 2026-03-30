@@ -14,6 +14,7 @@ Current features:
 - deterministic render golden-hash tests
 - review bundle emission to temp/user-selected disk
 - embedded local web UI with persisted review URLs/artifacts and basic render controls
+- live WebSocket render progress in the browser UI
 - deterministic sample generator + checked-in example inputs/outputs
 - benchmark coverage for render/palette hot paths
 - CLI integration coverage for help/convert/inspect/palette/review flows
@@ -108,11 +109,14 @@ Hosted hardening knobs:
 
 `serve` also keeps a session render history in the browser UI so you can jump back to recent review pages, previews, finals, records, and debug sheets without rerendering.
 
+`serve` now streams staged render progress to the browser over WebSockets so the UI can show a classic loading bar during compute-heavy passes.
+
 `serve` persists browser renders into a temp review store and exposes:
 
 - `GET /api/session`
 - `POST /api/session/login`
 - `POST /api/session/logout`
+- `GET /ws`
 - `GET /api/palettes`
 - `GET /api/renders`
 - `POST /api/render`

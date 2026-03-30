@@ -30,3 +30,12 @@ type SessionStatusResponse struct {
 	AuthRequired  bool `json:"auth_required"`
 	Authenticated bool `json:"authenticated"`
 }
+
+type RenderSocketEvent struct {
+	Type     string          `json:"type"`
+	ClientID string          `json:"client_id,omitempty"`
+	Stage    string          `json:"stage,omitempty"`
+	Percent  int             `json:"percent,omitempty"`
+	Message  string          `json:"message,omitempty"`
+	Result   *RenderResponse `json:"result,omitempty"`
+}

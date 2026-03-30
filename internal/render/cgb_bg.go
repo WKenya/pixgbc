@@ -27,6 +27,7 @@ func RunCGBBG(ctx context.Context, src core.Source, cfg core.Config) (*core.Resu
 		return nil, err
 	}
 
+	core.ReportProgress(ctx, "source", 12, "loading source frame")
 	frame, err := src.Frame(ctx, 0)
 	if err != nil {
 		return nil, err
@@ -44,14 +45,17 @@ func RunCGBBG(ctx context.Context, src core.Source, cfg core.Config) (*core.Resu
 	if cfg.AlphaMode == core.AlphaReserve {
 		bg = color.NRGBA{}
 	}
+	core.ReportProgress(ctx, "preprocess", 24, "resizing and tone mapping")
 	normalized := preprocess.ResizeToCanvas(frame.Image, cfg.TargetWidth, cfg.TargetHeight, cfg.CropMode, bg)
 	if cfg.AlphaMode == core.AlphaFlatten {
 		normalized = preprocess.Flatten(normalized, cfg.BackgroundColor)
 	}
 	normalized = preprocess.ApplyTone(normalized, cfg.Brightness, cfg.Contrast, cfg.Gamma)
 
+	core.ReportProgress(ctx, "tiles", 38, "splitting tiles")
 	tiles := splitIntoTiles(normalized, cfg.TileSize)
 	tilePalettes := make([][]color.NRGBA, 0, len(tiles))
+	core.ReportProgress(ctx, "palette", 50, "extracting tile palettes")
 	for _, tile := range tiles {
 		var tilePalette []color.NRGBA
 		switch cfg.PaletteStrategy {
@@ -73,12 +77,14 @@ func RunCGBBG(ctx context.Context, src core.Source, cfg core.Config) (*core.Resu
 		tilePalettes = append(tilePalettes, tilePalette)
 	}
 
+	core.ReportProgress(ctx, "banks", 66, "clustering palette banks")
 	bankPalettes := palette.ClusterTilePalettes(tilePalettes, cfg.MaxPalettes, cfg.ColorsPerTile)
 	if cfg.PaletteStrategy == core.PalettePreset && selectedPreset != nil {
 		bankPalettes = snapBankPalettesToPreset(bankPalettes, selectedPreset.Colors, cfg.ColorsPerTile)
 	}
 	assignments := palette.AssignTilePalettesToBanks(tilePalettes, bankPalettes)
 
+	core.ReportProgress(ctx, "quantize", 82, "quantizing tile banks")
 	finalImage := image.NewNRGBA(normalized.Bounds())
 	tileAssignments := make([]core.TileAssignment, 0, len(tiles))
 	for i, tile := range tiles {
@@ -95,6 +101,7 @@ func RunCGBBG(ctx context.Context, src core.Source, cfg core.Config) (*core.Resu
 		})
 	}
 
+	core.ReportProgress(ctx, "preview", 92, "building preview")
 	result := &core.Result{
 		FinalImage:      finalImage,
 		PreviewImage:    preprocess.UpscaleNearest(finalImage, cfg.PreviewScale),

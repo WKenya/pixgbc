@@ -27,6 +27,7 @@ type Server struct {
 	store   review.Store
 	cfg     ServerConfig
 	limiter *renderLimiter
+	sockets *socketHub
 }
 
 type ServerConfig struct {
@@ -58,9 +59,11 @@ func NewServerWithStore(engine core.Engine, limits ioimg.Limits, store review.St
 		store:   store,
 		cfg:     cfg,
 		limiter: newRenderLimiter(cfg),
+		sockets: newSocketHub(),
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", server.handleHealth)
+	mux.HandleFunc("GET /ws", server.handleSocket)
 	mux.HandleFunc("GET /api/session", server.handleSessionStatus)
 	mux.HandleFunc("POST /api/session/login", server.handleSessionLogin)
 	mux.HandleFunc("POST /api/session/logout", server.handleSessionLogout)
@@ -126,9 +129,12 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("parse upload: %v", err), http.StatusBadRequest)
 		return
 	}
+	clientID := strings.TrimSpace(r.FormValue("client_id"))
+	s.publishProgress(clientID, "upload", 6, "upload received")
 
 	file, _, err := r.FormFile("file")
 	if err != nil {
+		s.publishError(clientID, "missing form file field 'file'")
 		http.Error(w, "missing form file field 'file'", http.StatusBadRequest)
 		return
 	}
@@ -136,18 +142,23 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 
 	inputBytes, err := io.ReadAll(file)
 	if err != nil {
+		s.publishError(clientID, fmt.Sprintf("read upload: %v", err))
 		http.Error(w, fmt.Sprintf("read upload: %v", err), http.StatusBadRequest)
 		return
 	}
+	s.publishProgress(clientID, "decode", 16, "decoding source image")
 
 	decoded, err := ioimg.DecodeImage(bytes.NewReader(inputBytes), s.limits)
 	if err != nil {
+		s.publishError(clientID, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	s.publishProgress(clientID, "config", 24, "reading render controls")
 	cfg, err := parseRenderConfig(r)
 	if err != nil {
+		s.publishError(clientID, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -161,14 +172,20 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 		len(inputBytes),
 	)
 
-	result, err := s.engine.Run(r.Context(), source.NewSingleImage(decoded.Image, decoded.Meta), cfg)
+	resultCtx := core.WithProgressReporter(r.Context(), func(update core.ProgressUpdate) {
+		s.publishProgress(clientID, update.Stage, update.Percent, update.Message)
+	})
+	result, err := s.engine.Run(resultCtx, source.NewSingleImage(decoded.Image, decoded.Meta), cfg)
 	if err != nil {
+		s.publishError(clientID, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	s.publishProgress(clientID, "save", 96, "saving review bundle")
 	record, err := review.SaveResult(r.Context(), s.store, inputBytes, cfg, result)
 	if err != nil {
+		s.publishError(clientID, fmt.Sprintf("save review: %v", err))
 		http.Error(w, fmt.Sprintf("save review: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -193,6 +210,8 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 		record.OutputHeight,
 		response.ReviewURL,
 	)
+	s.publishProgress(clientID, "done", 100, "render complete")
+	s.publishResult(clientID, response)
 	writeJSON(w, http.StatusOK, response)
 }
 
@@ -335,6 +354,42 @@ func (s *Server) artifactURL(id, name string, token string) string {
 
 func (s *Server) reviewURL(id string, token string) string {
 	return withTokenQuery("/renders/"+id, token)
+}
+
+func (s *Server) publishProgress(clientID, stage string, percent int, message string) {
+	if clientID == "" {
+		return
+	}
+	s.sockets.send(clientID, RenderSocketEvent{
+		Type:    "progress",
+		Stage:   stage,
+		Percent: percent,
+		Message: message,
+	})
+}
+
+func (s *Server) publishResult(clientID string, result RenderResponse) {
+	if clientID == "" {
+		return
+	}
+	s.sockets.send(clientID, RenderSocketEvent{
+		Type:    "done",
+		Stage:   "done",
+		Percent: 100,
+		Message: "render complete",
+		Result:  &result,
+	})
+}
+
+func (s *Server) publishError(clientID, message string) {
+	if clientID == "" {
+		return
+	}
+	s.sockets.send(clientID, RenderSocketEvent{
+		Type:    "error",
+		Percent: 100,
+		Message: message,
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

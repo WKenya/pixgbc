@@ -21,6 +21,7 @@ const maxPalettesInput = document.querySelector("#max-palettes");
 const debugInput = document.querySelector("#debug");
 const fileInput = document.querySelector("#file");
 const renderButton = document.querySelector("#render");
+const statusProgressNode = document.querySelector("#status-progress");
 const statusNode = document.querySelector("#status");
 const previewImage = document.querySelector("#preview");
 const consoleScreen = document.querySelector(".console-screen");
@@ -63,8 +64,10 @@ let sessionState = {
   authenticated: true,
 };
 let guideIndex = 0;
-let renderStatusTimer = 0;
 let paletteModeTouched = false;
+let renderSocket = null;
+let renderSocketRetryTimer = 0;
+const renderSocketClientID = window.crypto?.randomUUID?.() ?? `pixgbc-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 function authLocked() {
   return sessionState.auth_required && !sessionState.authenticated;
@@ -122,22 +125,76 @@ function syncPreviewState() {
   consoleScreen.classList.toggle("has-image", Boolean(previewImage.getAttribute("src")));
 }
 
-function stopRenderStatusAnimation() {
-  if (renderStatusTimer) {
-    window.clearInterval(renderStatusTimer);
-    renderStatusTimer = 0;
+function setRenderProgress(percent, message, { animate = false } = {}) {
+  const clamped = Math.max(0, Math.min(100, Number(percent) || 0));
+  statusProgressNode.style.width = `${clamped}%`;
+  statusProgressNode.classList.toggle("loading", animate && clamped > 0 && clamped < 100);
+  if (message) {
+    statusNode.textContent = message;
   }
 }
 
-function startRenderStatusAnimation() {
-  stopRenderStatusAnimation();
-  const frames = ["rendering.", "rendering..", "rendering..."];
-  let index = 0;
-  statusNode.textContent = frames[index];
-  renderStatusTimer = window.setInterval(() => {
-    index = (index + 1) % frames.length;
-    statusNode.textContent = frames[index];
-  }, 360);
+function renderSocketURL() {
+  const url = new URL("/ws", window.location.href);
+  url.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  url.searchParams.set("client_id", renderSocketClientID);
+  return url.toString();
+}
+
+function closeRenderSocket() {
+  if (renderSocketRetryTimer) {
+    window.clearTimeout(renderSocketRetryTimer);
+    renderSocketRetryTimer = 0;
+  }
+  if (renderSocket) {
+    renderSocket.close();
+    renderSocket = null;
+  }
+}
+
+function handleRenderSocketEvent(event) {
+  if (!event || typeof event !== "object") {
+    return;
+  }
+  switch (event.type) {
+    case "progress":
+      setRenderProgress(event.percent, event.message, { animate: renderInFlight });
+      break;
+    case "done":
+      setRenderProgress(100, event.message || "render complete");
+      break;
+    case "error":
+      setRenderProgress(0, event.message || "render failed");
+      break;
+    default:
+      break;
+  }
+}
+
+function ensureRenderSocket() {
+  if (authLocked() || renderSocket?.readyState === WebSocket.OPEN || renderSocket?.readyState === WebSocket.CONNECTING) {
+    return;
+  }
+  renderSocket = new WebSocket(renderSocketURL());
+  renderSocket.addEventListener("message", (messageEvent) => {
+    try {
+      handleRenderSocketEvent(JSON.parse(messageEvent.data));
+    } catch {
+      statusNode.textContent = "socket message error";
+    }
+  });
+  renderSocket.addEventListener("close", () => {
+    renderSocket = null;
+    if (authLocked()) {
+      return;
+    }
+    if (renderSocketRetryTimer) {
+      window.clearTimeout(renderSocketRetryTimer);
+    }
+    renderSocketRetryTimer = window.setTimeout(() => {
+      ensureRenderSocket();
+    }, 1200);
+  });
 }
 
 function clearCompareState() {
@@ -183,6 +240,7 @@ async function loadSession() {
 
 function clearSessionUI(message) {
   sessionState = { auth_required: true, authenticated: false };
+  closeRenderSocket();
   historyListNode.innerHTML = `<p class="status">${message}</p>`;
   syncAuthUI();
 }
@@ -225,6 +283,7 @@ async function loginWithToken({ quiet = false } = {}) {
   tokenInput.value = "";
   clearTokenQueryParam();
   syncAuthUI();
+  ensureRenderSocket();
   statusNode.textContent = "session unlocked";
   return true;
 }
@@ -239,12 +298,14 @@ async function logoutSession() {
   }
 
   sessionState = await response.json();
+  closeRenderSocket();
   previewImage.removeAttribute("src");
   syncPreviewState();
   linksNode.innerHTML = "";
   clearCompareState();
   historyListNode.innerHTML = "<p class=\"status\">sign in to view render history</p>";
   statusNode.textContent = "session cleared";
+  setRenderProgress(0, "session cleared");
   syncAuthUI();
 }
 
@@ -341,10 +402,12 @@ async function renderImage() {
 
   renderInFlight = true;
   syncAuthUI();
-  startRenderStatusAnimation();
+  ensureRenderSocket();
+  setRenderProgress(4, "queueing render", { animate: true });
 
   const form = new FormData();
   form.set("file", file);
+  form.set("client_id", renderSocketClientID);
   form.set("palette_mode", paletteModeSelect.value);
   form.set("palette", paletteSelect.value);
   form.set("mode", modeSelect.value);
@@ -373,14 +436,12 @@ async function renderImage() {
   if (response.status === 401) {
     clearSessionUI("sign in to render");
     renderInFlight = false;
-    stopRenderStatusAnimation();
     syncAuthUI();
-    statusNode.textContent = "sign in first";
+    setRenderProgress(0, "sign in first");
     return;
   }
   if (!response.ok) {
-    stopRenderStatusAnimation();
-    statusNode.textContent = await response.text();
+    setRenderProgress(0, await response.text());
     renderInFlight = false;
     syncAuthUI();
     return;
@@ -406,8 +467,7 @@ async function renderImage() {
     <span> · </span>
     <a href="${payload.compare_url}" target="_blank" rel="noreferrer">compare card</a>
   `;
-  stopRenderStatusAnimation();
-  statusNode.textContent = "render complete";
+  setRenderProgress(100, "render complete");
   renderInFlight = false;
   syncAuthUI();
   void loadHistory();
@@ -470,11 +530,13 @@ void (async () => {
   syncDebugUI();
   syncPreviewState();
   clearCompareState();
+  setRenderProgress(0, "Load an image, then render.");
   startGuideRotation();
   const bootstrapped = await bootstrapSessionFromURL();
   if (!bootstrapped) {
     await loadSession();
   }
+  ensureRenderSocket();
   await loadPalettes();
   await loadHistory();
   syncControls();

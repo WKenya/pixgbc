@@ -17,6 +17,7 @@ func RunRelaxed(ctx context.Context, src core.Source, cfg core.Config) (*core.Re
 		return nil, err
 	}
 
+	core.ReportProgress(ctx, "source", 14, "loading source frame")
 	frame, err := src.Frame(ctx, 0)
 	if err != nil {
 		return nil, err
@@ -31,16 +32,19 @@ func RunRelaxed(ctx context.Context, src core.Source, cfg core.Config) (*core.Re
 	if cfg.AlphaMode == core.AlphaReserve {
 		bg = color.NRGBA{}
 	}
+	core.ReportProgress(ctx, "preprocess", 28, "resizing and tone mapping")
 	normalized := preprocess.ResizeToCanvas(frame.Image, cfg.TargetWidth, cfg.TargetHeight, cfg.CropMode, bg)
 	if cfg.AlphaMode == core.AlphaFlatten {
 		normalized = preprocess.Flatten(normalized, cfg.BackgroundColor)
 	}
 	normalized = preprocess.ApplyTone(normalized, cfg.Brightness, cfg.Contrast, cfg.Gamma)
+	core.ReportProgress(ctx, "palette", 54, "resolving palette")
 	paletteColors, err := resolvePalette(normalized, cfg)
 	if err != nil {
 		return nil, err
 	}
 
+	core.ReportProgress(ctx, "quantize", 78, "quantizing image")
 	finalImage, err := palette.QuantizeWholeImage(normalized, palette.QuantizeOptions{
 		Palette:             paletteColors,
 		Dither:              cfg.Dither,
@@ -50,6 +54,7 @@ func RunRelaxed(ctx context.Context, src core.Source, cfg core.Config) (*core.Re
 		return nil, err
 	}
 
+	core.ReportProgress(ctx, "preview", 92, "building preview")
 	preview := preprocess.UpscaleNearest(finalImage, cfg.PreviewScale)
 
 	return &core.Result{
