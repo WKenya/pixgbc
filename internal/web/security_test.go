@@ -43,3 +43,45 @@ func TestSecurityHeadersPresent(t *testing.T) {
 		}
 	}
 }
+
+func TestSecurityMiddlewareBlocksDotfileAndTraversalPaths(t *testing.T) {
+	store, err := review.NewTempStore(t.TempDir(), time.Hour)
+	if err != nil {
+		t.Fatalf("NewTempStore() error = %v", err)
+	}
+
+	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store, ServerConfig{})
+
+	for _, target := range []string{
+		"/.aws/credentials",
+		"/.ssh/config",
+		"/%2eenv",
+		"/api/renders/%2e%2e/artifacts/final.png",
+		"/api/%2fetc%2fpasswd",
+	} {
+		request := httptest.NewRequest(http.MethodGet, target, nil)
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, request)
+
+		if recorder.Code != http.StatusNotFound {
+			t.Fatalf("GET %s status = %d, want 404", target, recorder.Code)
+		}
+	}
+}
+
+func TestSecurityMiddlewareAllowsNormalPaths(t *testing.T) {
+	store, err := review.NewTempStore(t.TempDir(), time.Hour)
+	if err != nil {
+		t.Fatalf("NewTempStore() error = %v", err)
+	}
+
+	handler := NewServerWithStore(render.NewEngine(), ioimg.DefaultLimits(), store, ServerConfig{})
+
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("GET / status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+}

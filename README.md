@@ -103,6 +103,8 @@ Hosted hardening knobs:
 
 `serve` now sends basic hardening headers on all responses: CSP, `nosniff`, `DENY` framing, `no-referrer`, and locked-down permissions policy.
 
+`serve` also drops common dotfile and encoded path-traversal probes with a flat `404` before they reach app routes.
+
 `serve --artifact-ttl` now does an initial expired-artifact sweep at startup and keeps cleaning old review bundles on an interval while the server runs.
 
 `serve` now logs startup cleanup, cleanup sweeps, HTTP requests, and render start/done events to stdout for easier local monitoring.
