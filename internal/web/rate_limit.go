@@ -10,12 +10,16 @@ import (
 
 type renderLimiter struct {
 	window        time.Duration
-	limit         int
+	renderLimit   int
+	requestLimit  int
+	probeLimit    int
 	maxConcurrent int
 
-	mu     sync.Mutex
-	perIP  map[string]renderWindow
-	active chan struct{}
+	mu           sync.Mutex
+	renderPerIP  map[string]renderWindow
+	requestPerIP map[string]renderWindow
+	probePerIP   map[string]renderWindow
+	active       chan struct{}
 }
 
 type renderWindow struct {
@@ -26,11 +30,19 @@ type renderWindow struct {
 func newRenderLimiter(cfg ServerConfig) *renderLimiter {
 	limiter := &renderLimiter{
 		window:        cfg.RenderRateWindow,
-		limit:         cfg.RenderRateLimit,
+		renderLimit:   cfg.RenderRateLimit,
+		requestLimit:  cfg.RequestRateLimit,
+		probeLimit:    cfg.ProbeRateLimit,
 		maxConcurrent: cfg.MaxConcurrentRenders,
 	}
 	if cfg.RenderRateLimit > 0 {
-		limiter.perIP = make(map[string]renderWindow)
+		limiter.renderPerIP = make(map[string]renderWindow)
+	}
+	if cfg.RequestRateLimit > 0 {
+		limiter.requestPerIP = make(map[string]renderWindow)
+	}
+	if cfg.ProbeRateLimit > 0 {
+		limiter.probePerIP = make(map[string]renderWindow)
 	}
 	if cfg.MaxConcurrentRenders > 0 {
 		limiter.active = make(chan struct{}, cfg.MaxConcurrentRenders)
@@ -42,7 +54,7 @@ func (l *renderLimiter) acquire(r *http.Request, now time.Time) (func(), int, st
 	if l == nil {
 		return func() {}, http.StatusOK, ""
 	}
-	if l.limit > 0 && !l.allowIP(clientIP(r), now) {
+	if l.renderLimit > 0 && !l.allowRenderIP(clientIP(r), now) {
 		return nil, http.StatusTooManyRequests, "render rate limit exceeded; retry soon"
 	}
 	if l.active == nil {
@@ -56,20 +68,41 @@ func (l *renderLimiter) acquire(r *http.Request, now time.Time) (func(), int, st
 	}
 }
 
-func (l *renderLimiter) allowIP(ip string, now time.Time) bool {
+func (l *renderLimiter) allowRequestIP(ip string, now time.Time) bool {
+	if l == nil || l.requestLimit <= 0 {
+		return true
+	}
+	return l.allowWindow(l.requestPerIP, ip, now, l.requestLimit)
+}
+
+func (l *renderLimiter) allowProbeIP(ip string, now time.Time) bool {
+	if l == nil || l.probeLimit <= 0 {
+		return true
+	}
+	return l.allowWindow(l.probePerIP, ip, now, l.probeLimit)
+}
+
+func (l *renderLimiter) allowRenderIP(ip string, now time.Time) bool {
+	if l == nil || l.renderLimit <= 0 {
+		return true
+	}
+	return l.allowWindow(l.renderPerIP, ip, now, l.renderLimit)
+}
+
+func (l *renderLimiter) allowWindow(windows map[string]renderWindow, ip string, now time.Time, limit int) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	window := l.perIP[ip]
+	window := windows[ip]
 	if window.start.IsZero() || now.Sub(window.start) >= l.window {
-		l.perIP[ip] = renderWindow{start: now, count: 1}
+		windows[ip] = renderWindow{start: now, count: 1}
 		return true
 	}
-	if window.count >= l.limit {
+	if window.count >= limit {
 		return false
 	}
 	window.count++
-	l.perIP[ip] = window
+	windows[ip] = window
 	return true
 }
 

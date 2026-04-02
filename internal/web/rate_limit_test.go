@@ -87,6 +87,66 @@ func TestRenderConcurrencyLimit(t *testing.T) {
 	}
 }
 
+func TestRequestRateLimitByIP(t *testing.T) {
+	store, err := review.NewTempStore(t.TempDir(), time.Hour)
+	if err != nil {
+		t.Fatalf("NewTempStore() error = %v", err)
+	}
+
+	handler := NewServerWithStore(blockingEngine{}, ioimg.DefaultLimits(), store, ServerConfig{
+		RequestRateLimit:     1,
+		RenderRateWindow:     time.Minute,
+		ProbeRateLimit:       0,
+		RenderRateLimit:      0,
+		MaxConcurrentRenders: 0,
+	})
+
+	first := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	first.RemoteAddr = "1.2.3.4:1234"
+	firstRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(firstRecorder, first)
+	if firstRecorder.Code != http.StatusOK {
+		t.Fatalf("first GET /healthz status = %d, body = %s", firstRecorder.Code, firstRecorder.Body.String())
+	}
+
+	second := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	second.RemoteAddr = "1.2.3.4:9999"
+	secondRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(secondRecorder, second)
+	if secondRecorder.Code != http.StatusTooManyRequests {
+		t.Fatalf("second GET /healthz status = %d, want 429", secondRecorder.Code)
+	}
+}
+
+func TestProbeRateLimitByIP(t *testing.T) {
+	store, err := review.NewTempStore(t.TempDir(), time.Hour)
+	if err != nil {
+		t.Fatalf("NewTempStore() error = %v", err)
+	}
+
+	handler := NewServerWithStore(blockingEngine{}, ioimg.DefaultLimits(), store, ServerConfig{
+		RequestRateLimit: 0,
+		ProbeRateLimit:   1,
+		RenderRateWindow: time.Minute,
+	})
+
+	first := httptest.NewRequest(http.MethodGet, "/.ssh/config", nil)
+	first.RemoteAddr = "1.2.3.4:1234"
+	firstRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(firstRecorder, first)
+	if firstRecorder.Code != http.StatusNotFound {
+		t.Fatalf("first probe status = %d, want 404", firstRecorder.Code)
+	}
+
+	second := httptest.NewRequest(http.MethodGet, "/.env", nil)
+	second.RemoteAddr = "1.2.3.4:9999"
+	secondRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(secondRecorder, second)
+	if secondRecorder.Code != http.StatusTooManyRequests {
+		t.Fatalf("second probe status = %d, want 429", secondRecorder.Code)
+	}
+}
+
 type blockingEngine struct {
 	wait chan struct{}
 }

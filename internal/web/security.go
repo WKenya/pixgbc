@@ -10,11 +10,6 @@ const defaultContentSecurityPolicy = "default-src 'self'; base-uri 'self'; conne
 
 func (s *Server) securityHeadersMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if suspiciousRequestPath(r) {
-			http.NotFound(w, r)
-			return
-		}
-
 		headers := w.Header()
 		headers.Set("Content-Security-Policy", defaultContentSecurityPolicy)
 		headers.Set("Cross-Origin-Opener-Policy", "same-origin")

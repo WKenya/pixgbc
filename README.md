@@ -71,7 +71,7 @@ docker run --rm -p 8080:8080 pixgbc:local
 Run with a token:
 
 ```sh
-docker run --rm -p 8080:8080 pixgbc:local serve --listen 0.0.0.0:8080 --token demo-token --artifact-ttl 24h --session-ttl 12h --render-rate-per-minute 60 --max-concurrent-renders 2 --max-upload-bytes 10MB
+docker run --rm -p 8080:8080 pixgbc:local serve --listen 0.0.0.0:8080 --token demo-token --artifact-ttl 24h --session-ttl 12h --request-rate-per-minute 240 --probe-rate-per-minute 20 --render-rate-per-minute 60 --max-concurrent-renders 2 --max-upload-bytes 10MB
 ```
 
 `convert --emit-review` writes `source.png`, `final.png`, `preview.png`, `compare.png`, and `meta.json` into a review bundle directory and prints the bundle path.
@@ -98,6 +98,8 @@ If `serve` binds beyond localhost, `--token` is required by default. Use `--allo
 Hosted hardening knobs:
 
 - `--session-ttl 12h` controls browser session lifetime
+- `--request-rate-per-minute 240` caps per-IP request volume across all routes; `0` disables
+- `--probe-rate-per-minute 20` caps repeated suspicious path probes per IP; `0` disables
 - `--render-rate-per-minute 60` caps per-IP render volume; `0` disables
 - `--max-concurrent-renders 2` caps in-flight renders; `0` disables
 

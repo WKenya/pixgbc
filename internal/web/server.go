@@ -35,6 +35,8 @@ type ServerConfig struct {
 	LogOutput            io.Writer
 	SessionTTL           time.Duration
 	RenderRateLimit      int
+	RequestRateLimit     int
+	ProbeRateLimit       int
 	RenderRateWindow     time.Duration
 	MaxConcurrentRenders int
 }
@@ -74,7 +76,7 @@ func NewServerWithStore(engine core.Engine, limits ioimg.Limits, store review.St
 	mux.HandleFunc("GET /api/renders/{id}/artifacts/{name}", server.handleGetArtifact)
 	mux.HandleFunc("GET /renders/{id}", server.handleReviewPage)
 	mux.Handle("/", server.staticHandler())
-	return server.securityHeadersMiddleware(server.loggingMiddleware(mux))
+	return server.loggingMiddleware(server.securityHeadersMiddleware(server.rateLimitMiddleware(mux)))
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
@@ -530,6 +532,12 @@ func normalizeServerConfig(cfg ServerConfig) ServerConfig {
 	}
 	if cfg.RenderRateLimit < 0 {
 		cfg.RenderRateLimit = 0
+	}
+	if cfg.RequestRateLimit < 0 {
+		cfg.RequestRateLimit = 0
+	}
+	if cfg.ProbeRateLimit < 0 {
+		cfg.ProbeRateLimit = 0
 	}
 	if cfg.MaxConcurrentRenders < 0 {
 		cfg.MaxConcurrentRenders = 0

@@ -1,6 +1,10 @@
 package app
 
-import "testing"
+import (
+	"bytes"
+	"context"
+	"testing"
+)
 
 func TestIsLocalListen(t *testing.T) {
 	for _, value := range []string{"127.0.0.1:8080", "localhost:8080", "[::1]:8080", ":8080"} {
@@ -56,6 +60,20 @@ func TestRequiresAccessToken(t *testing.T) {
 	for _, test := range tests {
 		if got := requiresAccessToken(test.addr, test.token, test.allowOpenAccess); got != test.want {
 			t.Fatalf("%s: requiresAccessToken(%q, %q, %t) = %t, want %t", test.name, test.addr, test.token, test.allowOpenAccess, got, test.want)
+		}
+	}
+}
+
+func TestServeRateFlagsMustBeNonNegative(t *testing.T) {
+	app := New(&bytes.Buffer{}, &bytes.Buffer{})
+
+	for _, args := range [][]string{
+		{"serve", "--request-rate-per-minute", "-1"},
+		{"serve", "--probe-rate-per-minute", "-1"},
+		{"serve", "--render-rate-per-minute", "-1"},
+	} {
+		if code := app.Run(context.Background(), args); code != 2 {
+			t.Fatalf("Run(%v) = %d, want 2", args, code)
 		}
 	}
 }

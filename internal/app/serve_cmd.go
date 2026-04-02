@@ -25,6 +25,8 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 		artifactTTLRaw       string
 		sessionTTLRaw        string
 		maxUploadRaw         string
+		requestRatePerMinute int
+		probeRatePerMinute   int
 		renderRatePerMinute  int
 		maxConcurrentRenders int
 	)
@@ -35,6 +37,8 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 	fs.StringVar(&artifactTTLRaw, "artifact-ttl", "168h", "artifact retention duration")
 	fs.StringVar(&sessionTTLRaw, "session-ttl", "12h", "browser session duration when token auth is enabled")
 	fs.StringVar(&maxUploadRaw, "max-upload-bytes", "", "max upload size, e.g. 10MB")
+	fs.IntVar(&requestRatePerMinute, "request-rate-per-minute", 240, "per-IP request limit per minute across all routes, 0 disables")
+	fs.IntVar(&probeRatePerMinute, "probe-rate-per-minute", 20, "per-IP suspicious probe limit per minute, 0 disables")
 	fs.IntVar(&renderRatePerMinute, "render-rate-per-minute", 60, "per-IP render limit per minute, 0 disables")
 	fs.IntVar(&maxConcurrentRenders, "max-concurrent-renders", 2, "global concurrent render cap, 0 disables")
 	if err := fs.Parse(args); err != nil {
@@ -60,6 +64,14 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 	}
 	if renderRatePerMinute < 0 {
 		_, _ = fmt.Fprintln(a.stderr, "--render-rate-per-minute must be >= 0")
+		return 2
+	}
+	if requestRatePerMinute < 0 {
+		_, _ = fmt.Fprintln(a.stderr, "--request-rate-per-minute must be >= 0")
+		return 2
+	}
+	if probeRatePerMinute < 0 {
+		_, _ = fmt.Fprintln(a.stderr, "--probe-rate-per-minute must be >= 0")
 		return 2
 	}
 	if maxConcurrentRenders < 0 {
@@ -94,6 +106,8 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 		Token:                token,
 		LogOutput:            a.stdout,
 		SessionTTL:           sessionTTL,
+		RequestRateLimit:     requestRatePerMinute,
+		ProbeRateLimit:       probeRatePerMinute,
 		RenderRateLimit:      renderRatePerMinute,
 		RenderRateWindow:     time.Minute,
 		MaxConcurrentRenders: maxConcurrentRenders,
