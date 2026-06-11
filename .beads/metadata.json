@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "pixgbc",
+  "project_id": "5d6a5cb9-c959-4126-a05f-52ef89e74431"
+}
