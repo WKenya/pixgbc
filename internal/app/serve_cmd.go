@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,9 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 		probeRatePerMinute   int
 		renderRatePerMinute  int
 		maxConcurrentRenders int
+		maxSourceWidth       int
+		maxSourceHeight      int
+		maxSourcePixels      int64
 	)
 	fs.StringVar(&addr, "addr", "127.0.0.1:8080", "listen address")
 	fs.StringVar(&listen, "listen", "", "listen address")
@@ -41,12 +45,16 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 	fs.IntVar(&probeRatePerMinute, "probe-rate-per-minute", 20, "per-IP suspicious probe limit per minute, 0 disables")
 	fs.IntVar(&renderRatePerMinute, "render-rate-per-minute", 60, "per-IP render limit per minute, 0 disables")
 	fs.IntVar(&maxConcurrentRenders, "max-concurrent-renders", 2, "global concurrent render cap, 0 disables")
+	fs.IntVar(&maxSourceWidth, "max-source-width", a.limits.MaxWidth, "maximum decoded source image width")
+	fs.IntVar(&maxSourceHeight, "max-source-height", a.limits.MaxHeight, "maximum decoded source image height")
+	fs.Int64Var(&maxSourcePixels, "max-source-pixels", a.limits.MaxPixels, "maximum decoded source image pixels")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if listen != "" {
 		addr = listen
 	}
+	token = resolveServeToken(token)
 
 	artifactTTL, err := time.ParseDuration(artifactTTLRaw)
 	if err != nil {
@@ -78,7 +86,22 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 		_, _ = fmt.Fprintln(a.stderr, "--max-concurrent-renders must be >= 0")
 		return 2
 	}
+	if maxSourceWidth <= 0 {
+		_, _ = fmt.Fprintln(a.stderr, "--max-source-width must be > 0")
+		return 2
+	}
+	if maxSourceHeight <= 0 {
+		_, _ = fmt.Fprintln(a.stderr, "--max-source-height must be > 0")
+		return 2
+	}
+	if maxSourcePixels <= 0 {
+		_, _ = fmt.Fprintln(a.stderr, "--max-source-pixels must be > 0")
+		return 2
+	}
 	limits := a.limits
+	limits.MaxWidth = maxSourceWidth
+	limits.MaxHeight = maxSourceHeight
+	limits.MaxPixels = maxSourcePixels
 	if maxUploadRaw != "" {
 		maxUploadBytes, err := parseByteSize(maxUploadRaw)
 		if err != nil {
@@ -100,7 +123,11 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 	_, _ = fmt.Fprintf(a.stdout, "startup cleanup complete ttl=%s\n", artifactTTL)
 
 	server := &http.Server{
-		Addr: addr,
+		Addr:              addr,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      2 * time.Minute,
+		IdleTimeout:       60 * time.Second,
 	}
 	handler := internalweb.NewServerWithStore(a.engine(), limits, store, internalweb.ServerConfig{
 		Token:                token,
@@ -142,6 +169,13 @@ func (a *App) runServe(ctx context.Context, args []string) int {
 
 func requiresAccessToken(addr, token string, allowOpenAccess bool) bool {
 	return !isLocalListen(addr) && token == "" && !allowOpenAccess
+}
+
+func resolveServeToken(flagToken string) string {
+	if strings.TrimSpace(flagToken) != "" {
+		return strings.TrimSpace(flagToken)
+	}
+	return strings.TrimSpace(os.Getenv("PIXGBC_TOKEN"))
 }
 
 func isLocalListen(addr string) bool {

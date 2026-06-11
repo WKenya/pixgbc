@@ -407,6 +407,65 @@ button.secondary {
     linear-gradient(180deg, rgba(235, 225, 200, 0), rgba(235, 225, 200, 0.96) 30%, rgba(235, 225, 200, 1) 100%);
 }
 
+.render-action-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 10px;
+  align-items: center;
+}
+
+.info-icon {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--shell-edge);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 245, 0.96), rgba(216, 203, 174, 0.9));
+  color: var(--olive-dark);
+  font-family: "Iowan Old Style", "Book Antiqua", Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  box-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.45) inset,
+    0 3px 0 rgba(77, 72, 57, 0.12);
+}
+
+.info-icon:focus {
+  outline: 3px solid rgba(152, 173, 79, 0.32);
+  outline-offset: 2px;
+}
+
+.info-tooltip {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 8;
+  width: min(250px, calc(100vw - 36px));
+  padding: 10px 12px;
+  border: 2px solid var(--shell-edge);
+  background: #fffaf0;
+  color: var(--ink);
+  font-family: "Avenir Next", "Trebuchet MS", sans-serif;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  box-shadow: 0 10px 24px rgba(49, 45, 35, 0.18);
+}
+
+.info-icon:hover .info-tooltip,
+.info-icon:focus .info-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .status-meter {
   width: 100%;
 }

@@ -8,6 +8,7 @@ Run:
 
 ```sh
 CGO_ENABLED=0 GOCACHE=/tmp/pixgbc-gocache make test
+CGO_ENABLED=0 GOCACHE=/tmp/pixgbc-gocache GOMODCACHE=/tmp/pixgbc-gomodcache make static-site
 CGO_ENABLED=0 GOCACHE=/tmp/pixgbc-gocache make docs-assets
 CGO_ENABLED=0 GOCACHE=/tmp/pixgbc-gocache make bench
 ```
@@ -16,6 +17,7 @@ Check:
 
 - worktree clean
 - sample docs assets regenerated under `docs/assets/`
+- static WASM bundle builds under `dist/`
 - benchmark output has no obvious regressions
 - README examples still match current CLI flags
 
@@ -42,6 +44,7 @@ Call out:
 
 - relaxed + strict `cgb-bg` render modes
 - CLI + local browser UI
+- browser-local WASM/static deployment option
 - persisted review bundles with hashes/debug artifacts
 - sample images + screenshots in `docs/assets/`
 
@@ -56,6 +59,7 @@ Prefer small Conventional Commits:
 ## Ship checklist
 
 - [ ] `make test` clean
+- [ ] `make static-site` clean
 - [ ] `make docs-assets` clean
 - [ ] `make bench` reviewed
 - [ ] LAN review page checked from another device

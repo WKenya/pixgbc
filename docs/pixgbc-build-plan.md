@@ -227,7 +227,7 @@ Not part of the core release, but the architecture should leave room for them.
 - save/load named render presets
 
 ### Longer-term extensions
-- public hosted service
+- public server-side hosted service
 - persistent review history
 - shareable review links
 - ROM-ish or tile-data export

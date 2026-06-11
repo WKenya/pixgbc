@@ -1,6 +1,8 @@
 .git
 .github
+.beads
 bin
+dist
 docs/assets
 samples/outputs
 samples/reviews

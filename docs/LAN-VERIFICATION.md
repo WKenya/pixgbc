@@ -8,7 +8,7 @@ Use a non-local bind. Token required.
 
 ```sh
 CGO_ENABLED=0 GOCACHE=/tmp/pixgbc-gocache make build
-./bin/pixgbc serve --listen 0.0.0.0:8080 --token demo-token --artifact-ttl 24h --max-upload-bytes 10MB
+./bin/pixgbc serve --listen 0.0.0.0:8080 --token demo-token --artifact-ttl 24h --max-upload-bytes 10MB --max-source-width 4096 --max-source-height 4096 --max-source-pixels 16777216
 ```
 
 Find host IP on the serving machine:

@@ -1,0 +1,1 @@
+{"id":"int-e704c558b29327e96745f83572d2ea52","kind":"field_change","created_at":"2026-06-11T15:07:46.188025Z","actor":"Wes Kenyon","issue_id":"pixgbc-bfw","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"Implemented WASM static deployment, design doc, hardened Docker targets, and verified tests/static/docker/WASM smoke."}}

@@ -64,6 +64,16 @@ func TestRequiresAccessToken(t *testing.T) {
 	}
 }
 
+func TestResolveServeTokenUsesEnvironmentFallback(t *testing.T) {
+	t.Setenv("PIXGBC_TOKEN", " env-secret ")
+	if got := resolveServeToken(""); got != "env-secret" {
+		t.Fatalf("resolveServeToken(\"\") = %q, want env-secret", got)
+	}
+	if got := resolveServeToken(" flag-secret "); got != "flag-secret" {
+		t.Fatalf("resolveServeToken(flag) = %q, want flag-secret", got)
+	}
+}
+
 func TestServeRateFlagsMustBeNonNegative(t *testing.T) {
 	app := New(&bytes.Buffer{}, &bytes.Buffer{})
 
@@ -71,6 +81,21 @@ func TestServeRateFlagsMustBeNonNegative(t *testing.T) {
 		{"serve", "--request-rate-per-minute", "-1"},
 		{"serve", "--probe-rate-per-minute", "-1"},
 		{"serve", "--render-rate-per-minute", "-1"},
+		{"serve", "--max-concurrent-renders", "-1"},
+	} {
+		if code := app.Run(context.Background(), args); code != 2 {
+			t.Fatalf("Run(%v) = %d, want 2", args, code)
+		}
+	}
+}
+
+func TestServeSourceLimitFlagsMustBePositive(t *testing.T) {
+	app := New(&bytes.Buffer{}, &bytes.Buffer{})
+
+	for _, args := range [][]string{
+		{"serve", "--max-source-width", "0"},
+		{"serve", "--max-source-height", "0"},
+		{"serve", "--max-source-pixels", "0"},
 	} {
 		if code := app.Run(context.Background(), args); code != 2 {
 			t.Fatalf("Run(%v) = %d, want 2", args, code)

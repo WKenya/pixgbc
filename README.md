@@ -14,6 +14,7 @@ Current features:
 - deterministic render golden-hash tests
 - review bundle emission to temp/user-selected disk
 - embedded local web UI with persisted review URLs/artifacts and basic render controls
+- browser-local WASM/static web build for public no-upload deployment
 - live WebSocket render progress in the browser UI
 - deterministic sample generator + checked-in example inputs/outputs
 - benchmark coverage for render/palette hot paths
@@ -49,6 +50,7 @@ go run ./cmd/pixgbc convert --input path/to/input.png --output out.png --emit-re
 go run ./cmd/pixgbc convert --input path/to/input.png --output out.png --mode cgb-bg --debug --emit-review temp
 go run ./cmd/pixgbc convert samples/portrait-alpha.png -o out.png --alpha flatten --bg '#f4f1e8'
 go run ./cmd/pixgbc serve --listen 127.0.0.1:8080 --artifact-ttl 24h --max-upload-bytes 10MB
+make static-site
 make samples
 make sample-outputs
 make docs-assets
@@ -56,23 +58,27 @@ make docs-assets
 
 ## Docker
 
-Build:
+Public/static build, preferred for internet deployment:
+
+```sh
+docker build --target static -t pixgbc-static:local .
+docker run --rm -p 8080:8080 pixgbc-static:local
+```
+
+Server build, for private/admin review artifacts:
 
 ```sh
 docker build -t pixgbc:local .
+docker run --rm -p 8080:8080 -e PIXGBC_TOKEN=demo-token pixgbc:local
 ```
 
-Run the server:
+Run server mode with explicit hosted limits:
 
 ```sh
-docker run --rm -p 8080:8080 pixgbc:local
+docker run --rm -p 8080:8080 -e PIXGBC_TOKEN=demo-token pixgbc:local serve --listen 0.0.0.0:8080 --artifact-ttl 1h --session-ttl 4h --request-rate-per-minute 60 --probe-rate-per-minute 10 --render-rate-per-minute 6 --max-concurrent-renders 1 --max-upload-bytes 4MB --max-source-width 4096 --max-source-height 4096 --max-source-pixels 16777216
 ```
 
-Run with a token:
-
-```sh
-docker run --rm -p 8080:8080 pixgbc:local serve --listen 0.0.0.0:8080 --token demo-token --artifact-ttl 24h --session-ttl 12h --request-rate-per-minute 240 --probe-rate-per-minute 20 --render-rate-per-minute 60 --max-concurrent-renders 2 --max-upload-bytes 10MB
-```
+Public deployment guidance: [docs/public-wasm-deployment.md](docs/public-wasm-deployment.md).
 
 `convert --emit-review` writes `source.png`, `final.png`, `preview.png`, `compare.png`, and `meta.json` into a review bundle directory and prints the bundle path.
 
@@ -95,6 +101,8 @@ In `cgb-bg`:
 
 If `serve` binds beyond localhost, `--token` is required by default. Use `--allow-open-access` to intentionally disable auth for a public/open demo. Browser sign-in exchanges the token for an `HttpOnly` session cookie; direct/manual access still works via `?token=...` or `Authorization: Bearer ...` when needed.
 
+`serve` also accepts `PIXGBC_TOKEN` as a runtime environment fallback when `--token` is omitted.
+
 Hosted hardening knobs:
 
 - `--session-ttl 12h` controls browser session lifetime
@@ -102,6 +110,7 @@ Hosted hardening knobs:
 - `--probe-rate-per-minute 20` caps repeated suspicious path probes per IP; `0` disables
 - `--render-rate-per-minute 60` caps per-IP render volume; `0` disables
 - `--max-concurrent-renders 2` caps in-flight renders; `0` disables
+- `--max-source-width 4096`, `--max-source-height 4096`, and `--max-source-pixels 16777216` cap decoded source dimensions
 
 `serve` now sends basic hardening headers on all responses: CSP, `nosniff`, `DENY` framing, `no-referrer`, and locked-down permissions policy.
 

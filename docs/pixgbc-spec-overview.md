@@ -380,7 +380,6 @@ Recommended order:
 - Go `embed`: https://pkg.go.dev/embed
 - Go `image`: https://pkg.go.dev/image
 - Go `image/png`: https://pkg.go.dev/image/png
-- Go `image/gif`: https://pkg.go.dev/image/gif
 - Go `net/http/httptest`: https://pkg.go.dev/net/http/httptest
 - Go `golang.org/x/image/draw`: https://pkg.go.dev/golang.org/x/image/draw
 - Cobra: https://github.com/spf13/cobra

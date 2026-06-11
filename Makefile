@@ -1,7 +1,7 @@
 GO ?= go
 CGO_ENABLED ?= 0
 
-.PHONY: build test run-help samples sample-outputs docs-assets bench
+.PHONY: build test run-help wasm static-site samples sample-outputs docs-assets bench
 
 build:
 	mkdir -p bin
@@ -12,6 +12,13 @@ test:
 
 run-help:
 	CGO_ENABLED=$(CGO_ENABLED) $(GO) run ./cmd/pixgbc --help
+
+wasm:
+	mkdir -p dist
+	CGO_ENABLED=0 GOOS=js GOARCH=wasm $(GO) build -trimpath -ldflags="-s -w" -o dist/pixgbc.wasm ./cmd/pixgbc-wasm
+	cp web/index.html web/app.js web/browser-mode.js web/server-mode.js web/styles.css web/wasm-client.js web/wasm-worker.js web/wasm_exec.js dist/
+
+static-site: wasm
 
 samples:
 	CGO_ENABLED=$(CGO_ENABLED) $(GO) run ./cmd/pixgbc-samplegen

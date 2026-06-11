@@ -1,8 +1,12 @@
+import { createBrowserMode } from "/browser-mode.js";
+import { createServerMode } from "/server-mode.js";
+
 const paletteModeSelect = document.querySelector("#palette-mode");
 const tokenInput = document.querySelector("#token");
 const loginButton = document.querySelector("#login");
 const logoutButton = document.querySelector("#logout");
 const authStatusNode = document.querySelector("#auth-status");
+const authStrip = document.querySelector(".auth-strip");
 const paletteSelect = document.querySelector("#palette");
 const modeSelect = document.querySelector("#mode");
 const widthInput = document.querySelector("#width");
@@ -59,6 +63,7 @@ const guideNotes = [
 ];
 
 let renderInFlight = false;
+let runtimeMode = "server";
 let sessionState = {
   auth_required: false,
   authenticated: true,
@@ -69,8 +74,98 @@ let renderSocket = null;
 let renderSocketRetryTimer = 0;
 const renderSocketClientID = window.crypto?.randomUUID?.() ?? `pixgbc-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+const browserMode = createBrowserMode({
+  paletteModeSelect,
+  tokenInput,
+  loginButton,
+  logoutButton,
+  authStatusNode,
+  paletteSelect,
+  modeSelect,
+  widthInput,
+  heightInput,
+  cropSelect,
+  ditherSelect,
+  alphaModeSelect,
+  bgColorInput,
+  brightnessInput,
+  contrastInput,
+  gammaInput,
+  previewScaleInput,
+  tileSizeInput,
+  colorsPerTileInput,
+  maxPalettesInput,
+  debugInput,
+  fileInput,
+  statusNode,
+  previewImage,
+  linksNode,
+  compareSourceImage,
+  comparePixelImage,
+  compareLinksNode,
+  historyListNode,
+  renderInFlight: () => renderInFlight,
+  setRenderInFlight: (value) => {
+    renderInFlight = value;
+  },
+  setRenderProgress,
+  syncAuthUI,
+  syncPreviewState,
+});
+
+const serverRuntime = createServerMode({
+  paletteModeSelect,
+  tokenInput,
+  paletteSelect,
+  modeSelect,
+  widthInput,
+  heightInput,
+  cropSelect,
+  ditherSelect,
+  alphaModeSelect,
+  bgColorInput,
+  brightnessInput,
+  contrastInput,
+  gammaInput,
+  previewScaleInput,
+  tileSizeInput,
+  colorsPerTileInput,
+  maxPalettesInput,
+  debugInput,
+  fileInput,
+  statusNode,
+  previewImage,
+  linksNode,
+  compareSourceImage,
+  comparePixelImage,
+  compareLinksNode,
+  historyListNode,
+  renderSocketClientID,
+  authLocked,
+  clearCompareState,
+  closeRenderSocket,
+  ensureRenderSocket,
+  enterBrowserMode,
+  setRenderInFlight: (value) => {
+    renderInFlight = value;
+  },
+  setRuntimeMode: (value) => {
+    runtimeMode = value;
+  },
+  setSessionState: (value) => {
+    sessionState = value;
+  },
+  setRenderProgress,
+  syncAuthUI,
+  syncPreviewState,
+});
+
+function serverMode() {
+  return runtimeMode === "server";
+}
+
 function authLocked() {
-  return sessionState.auth_required && !sessionState.authenticated;
+  return serverMode() && sessionState.auth_required && !sessionState.authenticated;
 }
 
 function isLoopbackHost(hostname) {
@@ -106,6 +201,13 @@ function toggleDebugUI() {
 }
 
 function syncAuthUI() {
+  if (!serverMode()) {
+    authStrip.hidden = true;
+    renderButton.disabled = renderInFlight;
+    return;
+  }
+
+  authStrip.hidden = false;
   if (!sessionState.auth_required) {
     authStatusNode.textContent = "Open demo. No sign-in required.";
   } else if (sessionState.authenticated) {
@@ -172,6 +274,9 @@ function handleRenderSocketEvent(event) {
 }
 
 function ensureRenderSocket() {
+  if (!serverMode()) {
+    return;
+  }
   if (authLocked() || renderSocket?.readyState === WebSocket.OPEN || renderSocket?.readyState === WebSocket.CONNECTING) {
     return;
   }
@@ -220,257 +325,37 @@ function startGuideRotation() {
   }, 4800);
 }
 
-async function apiFetch(url, init = {}) {
-  return fetch(url, {
-    credentials: "same-origin",
-    ...init,
-  });
-}
-
-async function loadSession() {
-  const response = await apiFetch("/api/session");
-  if (!response.ok) {
-    authStatusNode.textContent = await response.text();
-    return false;
-  }
-  sessionState = await response.json();
-  syncAuthUI();
-  return true;
-}
-
-function clearSessionUI(message) {
-  sessionState = { auth_required: true, authenticated: false };
+function enterBrowserMode(message = "Browser-local mode. Images stay on this device.") {
+  runtimeMode = "browser";
+  sessionState = { auth_required: false, authenticated: true };
+  document.documentElement.dataset.runtime = "browser";
   closeRenderSocket();
-  historyListNode.innerHTML = `<p class="status">${message}</p>`;
+  authStatusNode.textContent = message;
   syncAuthUI();
-}
-
-function clearTokenQueryParam() {
-  const url = new URL(window.location.href);
-  if (!url.searchParams.has("token")) {
-    return;
-  }
-  url.searchParams.delete("token");
-  const next = `${url.pathname}${url.search}${url.hash}`;
-  window.history.replaceState({}, "", next);
-}
-
-async function loginWithToken({ quiet = false } = {}) {
-  const token = tokenInput.value.trim();
-  if (!token) {
-    if (!quiet) {
-      statusNode.textContent = "enter token first";
-    }
-    return false;
-  }
-
-  const response = await apiFetch("/api/session/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token }),
-  });
-
-  if (!response.ok) {
-    if (!quiet) {
-      statusNode.textContent = await response.text();
-    }
-    sessionState = { auth_required: true, authenticated: false };
-    syncAuthUI();
-    return false;
-  }
-
-  sessionState = await response.json();
-  tokenInput.value = "";
-  clearTokenQueryParam();
-  syncAuthUI();
-  ensureRenderSocket();
-  statusNode.textContent = "session unlocked";
-  return true;
-}
-
-async function logoutSession() {
-  const response = await apiFetch("/api/session/logout", {
-    method: "POST",
-  });
-  if (!response.ok) {
-    statusNode.textContent = await response.text();
-    return;
-  }
-
-  sessionState = await response.json();
-  closeRenderSocket();
-  previewImage.removeAttribute("src");
-  syncPreviewState();
-  linksNode.innerHTML = "";
-  clearCompareState();
-  historyListNode.innerHTML = "<p class=\"status\">sign in to view render history</p>";
-  statusNode.textContent = "session cleared";
-  setRenderProgress(0, "session cleared");
-  syncAuthUI();
-}
-
-async function bootstrapSessionFromURL() {
-  const token = new URL(window.location.href).searchParams.get("token");
-  if (!token) {
-    return false;
-  }
-  tokenInput.value = token;
-  return loginWithToken({ quiet: true });
 }
 
 async function loadPalettes() {
-  if (authLocked()) {
-    paletteSelect.innerHTML = "<option>sign in required</option>";
+  if (!serverMode()) {
+    await browserMode.loadPalettes();
     return;
   }
-
-  const response = await apiFetch("/api/palettes");
-  if (response.status === 401) {
-    clearSessionUI("sign in to load palettes");
-    return;
-  }
-  if (!response.ok) {
-    statusNode.textContent = await response.text();
-    return;
-  }
-
-  const palettes = await response.json();
-  paletteSelect.innerHTML = "";
-  for (const palette of palettes) {
-    const option = document.createElement("option");
-    option.value = palette.key;
-    option.textContent = `${palette.display_name} (${palette.colors.join(" ")})`;
-    paletteSelect.append(option);
-  }
+  await serverRuntime.loadPalettes();
 }
 
 async function loadHistory() {
-  if (authLocked()) {
-    historyListNode.innerHTML = "<p class=\"status\">sign in to view render history</p>";
+  if (!serverMode()) {
+    browserMode.loadHistory();
     return;
   }
-
-  const response = await apiFetch("/api/renders?limit=20");
-  if (response.status === 401) {
-    clearSessionUI("sign in to view render history");
-    return;
-  }
-  if (!response.ok) {
-    historyListNode.innerHTML = `<p class="status">${await response.text()}</p>`;
-    return;
-  }
-
-  const items = await response.json();
-  if (items.length === 0) {
-    historyListNode.innerHTML = "<p class=\"status\">no renders yet</p>";
-    return;
-  }
-
-  historyListNode.innerHTML = items.map((item) => `
-    <article class="history-item">
-      <a href="${item.review_url}" target="_blank" rel="noreferrer"><img src="${item.preview_url}" alt="Preview for ${item.id}"></a>
-      <div>
-        <span class="stamp">saved render</span>
-        <p><strong>${item.mode}</strong> · ${item.width}x${item.height}</p>
-        <p>${new Date(item.created_at).toLocaleString()}</p>
-        <p class="links">
-          <a href="${item.review_url}" target="_blank" rel="noreferrer">review</a>
-          <span> · </span>
-          <a href="${item.final_url}" target="_blank" rel="noreferrer">final</a>
-          <span> · </span>
-          <a href="${item.compare_url}" target="_blank" rel="noreferrer">compare</a>
-          <span class="debug-only"> · </span>
-          <a class="debug-only" href="${item.record_url}" target="_blank" rel="noreferrer">record</a>
-          ${item.debug_url ? `<span class="debug-only"> · </span><a class="debug-only" href="${item.debug_url}" target="_blank" rel="noreferrer">debug</a>` : ""}
-        </p>
-      </div>
-    </article>
-  `).join("");
+  await serverRuntime.loadHistory();
 }
 
 async function renderImage() {
-  if (authLocked()) {
-    statusNode.textContent = "sign in first";
+  if (!serverMode()) {
+    await browserMode.renderImage();
     return;
   }
-
-  const file = fileInput.files?.[0];
-  if (!file) {
-    statusNode.textContent = "choose an image first";
-    return;
-  }
-
-  renderInFlight = true;
-  syncAuthUI();
-  ensureRenderSocket();
-  setRenderProgress(4, "queueing render", { animate: true });
-
-  const form = new FormData();
-  form.set("file", file);
-  form.set("client_id", renderSocketClientID);
-  form.set("palette_mode", paletteModeSelect.value);
-  form.set("palette", paletteSelect.value);
-  form.set("mode", modeSelect.value);
-  form.set("width", widthInput.value);
-  form.set("height", heightInput.value);
-  form.set("crop", cropSelect.value);
-  form.set("dither", ditherSelect.value);
-  form.set("alpha_mode", alphaModeSelect.value);
-  form.set("bg_color", bgColorInput.value);
-  form.set("brightness", brightnessInput.value);
-  form.set("contrast", contrastInput.value);
-  form.set("gamma", gammaInput.value);
-  form.set("preview_scale", previewScaleInput.value);
-  form.set("tile_size", tileSizeInput.value);
-  form.set("colors_per_tile", colorsPerTileInput.value);
-  form.set("max_palettes", maxPalettesInput.value);
-  if (debugInput.checked || modeSelect.value === "cgb-bg") {
-    form.set("debug", "1");
-  }
-
-  const response = await apiFetch("/api/render", {
-    method: "POST",
-    body: form,
-  });
-
-  if (response.status === 401) {
-    clearSessionUI("sign in to render");
-    renderInFlight = false;
-    syncAuthUI();
-    setRenderProgress(0, "sign in first");
-    return;
-  }
-  if (!response.ok) {
-    setRenderProgress(0, await response.text());
-    renderInFlight = false;
-    syncAuthUI();
-    return;
-  }
-
-  const payload = await response.json();
-  previewImage.src = payload.preview_url;
-  syncPreviewState();
-  linksNode.innerHTML = `
-    <a href="${payload.review_url}" target="_blank" rel="noreferrer">review page</a>
-    <span> · </span>
-    <a href="${payload.final_url}" target="_blank" rel="noreferrer">final png</a>
-    <span> · </span>
-    <a href="${payload.compare_url}" target="_blank" rel="noreferrer">compare card</a>
-    <span class="debug-only"> · </span>
-    <a class="debug-only" href="${payload.record_url}" target="_blank" rel="noreferrer">record json</a>
-    ${payload.debug_url ? `<span class="debug-only"> · </span><a class="debug-only" href="${payload.debug_url}" target="_blank" rel="noreferrer">debug sheet</a>` : ""}
-  `;
-  compareSourceImage.src = payload.source_url;
-  comparePixelImage.src = payload.preview_url;
-  compareLinksNode.innerHTML = `
-    <a href="${payload.source_url}" target="_blank" rel="noreferrer">original</a>
-    <span> · </span>
-    <a href="${payload.compare_url}" target="_blank" rel="noreferrer">compare card</a>
-  `;
-  setRenderProgress(100, "render complete");
-  renderInFlight = false;
-  syncAuthUI();
-  void loadHistory();
+  await serverRuntime.renderImage();
 }
 
 function syncControls() {
@@ -485,7 +370,7 @@ function syncControls() {
 
 loginButton.addEventListener("click", () => {
   void (async () => {
-    if (await loginWithToken()) {
+    if (await serverRuntime.loginWithToken()) {
       await loadPalettes();
       await loadHistory();
     }
@@ -493,7 +378,7 @@ loginButton.addEventListener("click", () => {
 });
 
 logoutButton.addEventListener("click", () => {
-  void logoutSession();
+  void serverRuntime.logoutSession();
 });
 
 renderButton.addEventListener("click", () => {
@@ -532,11 +417,14 @@ void (async () => {
   clearCompareState();
   setRenderProgress(0, "Load an image, then render.");
   startGuideRotation();
-  const bootstrapped = await bootstrapSessionFromURL();
-  if (!bootstrapped) {
-    await loadSession();
+  await serverRuntime.loadSession();
+  if (serverMode()) {
+    const bootstrapped = await serverRuntime.bootstrapSessionFromURL();
+    if (bootstrapped) {
+      await serverRuntime.loadSession();
+    }
+    ensureRenderSocket();
   }
-  ensureRenderSocket();
   await loadPalettes();
   await loadHistory();
   syncControls();

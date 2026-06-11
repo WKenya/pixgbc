@@ -21,6 +21,7 @@ profile.cov
 # vendor/
 
 bin/
+dist/
 samples/outputs/
 samples/reviews/
 
