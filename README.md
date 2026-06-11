@@ -80,6 +80,11 @@ docker run --rm -p 8080:8080 -e PIXGBC_TOKEN=demo-token pixgbc:local serve --lis
 
 Public deployment guidance: [docs/public-wasm-deployment.md](docs/public-wasm-deployment.md).
 
+Factory/Coolify deployment intent lives in
+[`deploy/factory.coolify.yml`](deploy/factory.coolify.yml). The GitLab pipeline
+publishes the Dockerfile `static` target for Coolify; Cloudflare routing is not
+enabled by default.
+
 `convert --emit-review` writes `source.png`, `final.png`, `preview.png`, `compare.png`, and `meta.json` into a review bundle directory and prints the bundle path.
 
 `convert --mode cgb-bg` runs the stricter tile/palette-bank solver. Add `--debug` to persist a composed debug sheet into the review bundle.

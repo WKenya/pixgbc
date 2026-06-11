@@ -1,0 +1,88 @@
+schema_version: 1
+
+app:
+  name: pixgbc
+  gitlab_project_path: apps/pixgbc
+  owner: wes@weskenyon.com
+  class: app
+  environment: production
+  data_classification: public
+
+coolify:
+  project: factory-app-platform
+  environment: production
+  server: coolify-app-01
+  resource_type: application
+  resource_name: pixgbc
+  resource_uuid: ""
+  deployment:
+    mode: docker_image
+    git_repository: ""
+    branch: ""
+    build_pack: docker_image
+    dockerfile_path: ""
+    compose_file: ""
+    image: gitlab.crocunraid.arpa:5050/apps/pixgbc
+    image_tag_policy: main for current private staging, immutable commit SHA and protected semver tag for releases
+    auto_deploy: false
+  ports:
+    app_port: 8080
+    expose_to_proxy: true
+
+domains:
+  exposure: private
+  hostnames: []
+  cloudflare_tunnel:
+    mode: none
+    service_url: ""
+    dns_record: ""
+    edge_policy:
+      allowed_source_cidrs: []
+      rate_limit:
+        period: 10
+        requests_per_period: 20
+        mitigation_timeout: 600
+        action: managed_challenge
+  coolify_domains: []
+
+secrets:
+  akeyless_project_path: ""
+  env: []
+
+runtime_env: []
+
+data:
+  database:
+    required: false
+    type: none
+    owner: none
+    migrations: ""
+    restore_check: ""
+  volumes: []
+
+health:
+  http:
+    path: /
+    expected_status: 200
+    timeout_seconds: 5
+    startup_grace_seconds: 30
+  smoke:
+    command: ""
+
+release:
+  protected_ref: vX.Y.Z
+  gate: release:gate
+  deploy_trigger: factory_coolify_terraform
+  rollback:
+    method: coolify_previous_local_image
+    migration_policy: none; static browser-local WASM app
+
+ownership:
+  factory:
+    - Coolify project and Docker-image application resource
+    - Future Cloudflare Tunnel route and edge controls before public traffic
+    - Registry pull credential setup outside git if Coolify cannot pull the private image
+  app_repo:
+    - Static WASM Docker image build
+    - Manifest values
+    - Health and smoke checks
