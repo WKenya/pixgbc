@@ -30,20 +30,22 @@ coolify:
     expose_to_proxy: true
 
 domains:
-  exposure: private
-  hostnames: []
+  exposure: public
+  hostnames:
+    - pixgbc.xyz
   cloudflare_tunnel:
-    mode: none
-    service_url: ""
-    dns_record: ""
+    mode: coolify_app_entrypoint
+    service_url: http://127.0.0.1:80
+    dns_record: pixgbc.xyz CNAME <factory-coolify-app-platform tunnel UUID>.cfargotunnel.com
     edge_policy:
       allowed_source_cidrs: []
       rate_limit:
         period: 10
         requests_per_period: 20
-        mitigation_timeout: 600
-        action: managed_challenge
-  coolify_domains: []
+        mitigation_timeout: 10
+        action: block
+  coolify_domains:
+    - http://pixgbc.xyz
 
 secrets:
   akeyless_project_path: ""
@@ -67,7 +69,7 @@ health:
     timeout_seconds: 5
     startup_grace_seconds: 30
   smoke:
-    command: ""
+    command: curl --fail --silent --show-error https://pixgbc.xyz/
 
 release:
   protected_ref: vX.Y.Z
@@ -80,7 +82,7 @@ release:
 ownership:
   factory:
     - Coolify project and Docker-image application resource
-    - Future Cloudflare Tunnel route and edge controls before public traffic
+    - Cloudflare Tunnel route, DNS record, and edge controls before public traffic
     - Registry pull credential setup outside git if Coolify cannot pull the private image
   app_repo:
     - Static WASM Docker image build

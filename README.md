@@ -82,8 +82,9 @@ Public deployment guidance: [docs/public-wasm-deployment.md](docs/public-wasm-de
 
 Factory/Coolify deployment intent lives in
 [`deploy/factory.coolify.yml`](deploy/factory.coolify.yml). The GitLab pipeline
-publishes the Dockerfile `static` target for Coolify; Cloudflare routing is not
-enabled by default.
+publishes the Dockerfile `static` target for Coolify; the `pixgbc.xyz`
+Cloudflare route is staged in factory Terraform and enabled only through the
+protected Cloudflare deploy gate.
 
 `convert --emit-review` writes `source.png`, `final.png`, `preview.png`, `compare.png`, and `meta.json` into a review bundle directory and prints the bundle path.
 
